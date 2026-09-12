@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Production build & compiler outputs
+dist/
+bin/
+*.class
+
+# SQLite data directory
+data/
+
+# Environment / IDE
+.DS_Store
+.vscode/
+.idea/
+*.log

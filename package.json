@@ -1,0 +1,25 @@
+{
+  "name": "smart-library-management-system",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "java:demo": "java -cp \"bin;lib/*\" Main --demo",
+    "java:cli": "java -cp \"bin;lib/*\" Main",
+    "java:server": "java -cp \"bin;lib/*\" Main --server",
+    "java:test": "java -cp \"bin;lib/*\" test.PatternTestSuite",
+    "java:build": "javac -d bin -cp \"lib/*\" (Get-ChildItem -Recurse -Filter *.java java-src | ForEach-Object { $_.FullName })"
+  },
+  "dependencies": {
+    "lucide-react": "^0.475.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.1.0"
+  }
+}
