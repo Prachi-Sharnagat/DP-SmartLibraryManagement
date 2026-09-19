@@ -114,7 +114,7 @@ export const Reports = () => {
         <div className="card-base" style={{ padding: '20px' }}>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Active Checked-Out Loans</span>
           <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--primary)', marginTop: '6px' }}>{activeLoansCount}</div>
-          <span style={{ fontSize: '0.75rem', color: '#16A34A', fontWeight: 600 }}>Real-time Chain of Responsibility validated</span>
+          <span style={{ fontSize: '0.75rem', color: '#16A34A', fontWeight: 600 }}>Real-time validated</span>
         </div>
 
         <div className="card-base" style={{ padding: '20px' }}>

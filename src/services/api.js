@@ -5,11 +5,21 @@ const API_BASE_URL = 'http://localhost:8080/api';
  */
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
+  
+  const token = localStorage.getItem('token');
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+  
+  if (token) {
+    defaultHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
   const config = {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      ...defaultHeaders,
       ...(options.headers || {})
     }
   };
@@ -25,16 +35,20 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
+  // Auth
+  login: (emailOrId, password) => request('/login', { method: 'POST', body: JSON.stringify({ emailOrId, password }) }),
+  logout: () => request('/logout', { method: 'POST' }),
+  getMe: () => request('/users/me'),
+
   // Health & Telemetry
   checkHealth: () => request('/health'),
   getStats: () => request('/stats'),
 
   // Catalog / Resources (Factory Pattern)
   getResources: () => request('/resources'),
-  createResource: (resourceData, callerUserId = 'U999') =>
+  createResource: (resourceData) =>
     request('/resources', {
       method: 'POST',
-      headers: { 'X-User-Id': callerUserId },
       body: JSON.stringify(resourceData)
     }),
   deleteResource: (resourceId) =>
@@ -54,16 +68,14 @@ export const api = {
     }),
 
   // Circulation (Chain of Responsibility & Observer Patterns)
-  issueResource: (userId, resourceId, callerUserId = 'U999') =>
+  issueResource: (userId, resourceId) =>
     request('/circulation/issue', {
       method: 'POST',
-      headers: { 'X-User-Id': callerUserId },
       body: JSON.stringify({ userId, resourceId })
     }),
-  returnResource: (resourceId, callerUserId = 'U999') =>
+  returnResource: (resourceId) =>
     request('/circulation/return', {
       method: 'POST',
-      headers: { 'X-User-Id': callerUserId },
       body: JSON.stringify({ resourceId })
     }),
   getLoans: () => request('/loans'),

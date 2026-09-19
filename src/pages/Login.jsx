@@ -3,28 +3,26 @@ import { useLibrary } from '../context/LibraryContext';
 import { BookOpen, ShieldCheck, ArrowRight, UserCheck } from 'lucide-react';
 
 export const Login = ({ onLoginSuccess }) => {
-  const { users, setCurrentUser, showToast, recordAuditLog } = useLibrary();
-  const [emailOrId, setEmailOrId] = useState('prachi@univ.edu');
-  const [password, setPassword] = useState('••••••••');
+  const { login, showToast, recordAuditLog } = useLibrary();
+  const [emailOrId, setEmailOrId] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
-    const found = users.find(
-      (u) => u.email.toLowerCase() === emailOrId.toLowerCase() || u.id.toLowerCase() === emailOrId.toLowerCase()
-    ) || users[0];
+    setIsLoading(true);
+    setErrorMsg('');
 
-    setCurrentUser(found);
-    recordAuditLog('AUTH_LOGIN', `User ${found.name} signed in (${found.role})`, 12);
-    showToast(`Welcome back, ${found.name}!`, 'success');
-    if (onLoginSuccess) onLoginSuccess();
-  };
-
-  const handleQuickLogin = (user) => {
-    setCurrentUser(user);
-    recordAuditLog('AUTH_QUICK_LOGIN', `Demo login as ${user.name} (${user.role})`, 10);
-    showToast(`Signed in as ${user.name} (${user.role})`, 'success');
-    if (onLoginSuccess) onLoginSuccess();
+    const res = await login(emailOrId, password);
+    if (res.success) {
+      showToast(`Welcome back!`, 'success');
+      if (onLoginSuccess) onLoginSuccess();
+    } else {
+      setErrorMsg('Invalid email or password.');
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -57,7 +55,7 @@ export const Login = ({ onLoginSuccess }) => {
               <span style={{ color: '#38BDF8' }}>Simplify circulation.</span>
             </h1>
             <p style={{ marginTop: '24px', fontSize: '1rem', color: '#94A3B8', lineHeight: 1.6 }}>
-              A high-integrity university library operations platform powered by modern software engineering architecture and GoF design patterns.
+              A high-integrity university library operations platform powered by modern software engineering architecture.
             </p>
           </div>
         </div>
@@ -89,10 +87,16 @@ export const Login = ({ onLoginSuccess }) => {
             </p>
           </div>
 
+          {errorMsg && (
+            <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#FEE2E2', color: '#B91C1C', borderRadius: '6px', fontSize: '0.875rem' }}>
+              {errorMsg}
+            </div>
+          )}
+
           <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '6px' }}>
-                Email / Username
+                Email / User ID
               </label>
               <input
                 type="text"
@@ -100,7 +104,7 @@ export const Login = ({ onLoginSuccess }) => {
                 className="input-base"
                 value={emailOrId}
                 onChange={(e) => setEmailOrId(e.target.value)}
-                placeholder="e.g. prachi@univ.edu or U1024"
+                placeholder="e.g. U101 or email"
               />
             </div>
 
@@ -109,9 +113,6 @@ export const Login = ({ onLoginSuccess }) => {
                 <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-main)' }}>
                   Password
                 </label>
-                <a href="#forgot" onClick={(e) => e.preventDefault()} style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>
-                  Forgot password?
-                </a>
               </div>
               <input
                 type="password"
@@ -119,65 +120,15 @@ export const Login = ({ onLoginSuccess }) => {
                 className="input-base"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                id="remember"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
-              />
-              <label htmlFor="remember" style={{ fontSize: '0.825rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                Remember me
-              </label>
-            </div>
-
-            <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: '0.925rem', marginTop: '8px' }}>
-              <span>Sign In</span>
-              <ArrowRight size={16} />
+            <button type="submit" className="btn-primary" disabled={isLoading} style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: '0.925rem', marginTop: '8px' }}>
+              <span>{isLoading ? 'Signing In...' : 'Sign In'}</span>
+              {!isLoading && <ArrowRight size={16} />}
             </button>
           </form>
-
-          {/* Quick Demo Logins for Pair Programming Evaluation */}
-          <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Instant Demo Access (By Role):
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin(users[0])}
-                className="btn-secondary"
-                style={{ fontSize: '0.75rem', padding: '8px 4px', flexDirection: 'column', gap: '2px', textAlign: 'center' }}
-              >
-                <span style={{ fontWeight: 600 }}>Prachi</span>
-                <span style={{ fontSize: '0.65rem', color: '#16A34A' }}>Student</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin(users[2])}
-                className="btn-secondary"
-                style={{ fontSize: '0.75rem', padding: '8px 4px', flexDirection: 'column', gap: '2px', textAlign: 'center' }}
-              >
-                <span style={{ fontWeight: 600 }}>Ananya</span>
-                <span style={{ fontSize: '0.65rem', color: '#0284C7' }}>Librarian</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin(users[5])}
-                className="btn-secondary"
-                style={{ fontSize: '0.75rem', padding: '8px 4px', flexDirection: 'column', gap: '2px', textAlign: 'center' }}
-              >
-                <span style={{ fontWeight: 600 }}>Dr. Sharma</span>
-                <span style={{ fontSize: '0.65rem', color: '#9333EA' }}>Admin</span>
-              </button>
-            </div>
-          </div>
 
           <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             Don't have an account?{' '}

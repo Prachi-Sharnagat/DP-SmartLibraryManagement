@@ -237,14 +237,18 @@ public class PatternTestSuite {
         assertEquals("SMS", sms.getChannelName(), "SMSChannel implementor name mismatch");
         assertEquals("IN_APP", inApp.getChannelName(), "InAppChannel implementor name mismatch");
 
-        Notification notifEmail = new BookAvailableNotification(email);
-        Notification notifSMS = new BookAvailableNotification(sms);
-        Notification notifInApp = new BookAvailableNotification(inApp);
+        Notification bookAvailEmail = new BookAvailableNotification(email);
+        Notification bookAvailSMS = new BookAvailableNotification(sms);
+        Notification dueInApp = new DueDateNotification(inApp);
 
-        // Execute sends without exceptions
-        notifEmail.send("alice@example.com", "Your book 'Clean Architecture' is ready.");
-        notifSMS.send("555-0102", "Your book 'Clean Architecture' is ready.");
-        notifInApp.send("U101", "Your book 'Clean Architecture' is ready.");
+        // Create mock users
+        User alice = new User("U_ALICE", "Alice", "alice@example.com", "555-0102", true, 0.0, 0, "MEMBER");
+        User bob = new User("U_BOB", "Bob", "bob@example.com", "555-0103", true, 0.0, 0, "MEMBER");
+
+        // Execute sends without exceptions. The abstraction varies independently from the channel.
+        bookAvailEmail.send(alice, "Your book 'Clean Architecture' is ready.");
+        bookAvailSMS.send(alice, "Your book 'Clean Architecture' is ready.");
+        dueInApp.send(bob, "Your book 'Clean Architecture' is due tomorrow.");
     }
 
     // 11. JSON Serialization & Request Parsing

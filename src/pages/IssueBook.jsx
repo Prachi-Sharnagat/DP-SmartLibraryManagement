@@ -88,7 +88,7 @@ export const IssueBook = ({ preselectedResource, onSuccess }) => {
           Issue Book
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-          Process library circulation with automated multi-tier Chain of Responsibility policy validation.
+          Process library circulation rules.
         </p>
       </div>
 
@@ -320,9 +320,6 @@ export const IssueBook = ({ preselectedResource, onSuccess }) => {
       {step === 3 && selectedMember && selectedResource && (
         <div className="card-base" style={{ padding: '24px' }}>
           <h2 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '6px' }}>Step 3: Multi-Tier Loan Validation</h2>
-          <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
-            Live evaluation through the <strong>Chain of Responsibility Pattern</strong> sequential rules.
-          </p>
 
           {/* Validation Pipeline Checklist */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>

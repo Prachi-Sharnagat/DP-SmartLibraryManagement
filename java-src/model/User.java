@@ -10,6 +10,14 @@ public class User {
     private int currentBorrowedCount;
     private String role; // "MEMBER", "LIBRARIAN", "ADMIN"
 
+    // New fields from React UI
+    private int maxLoans = 5;
+    private String department = "";
+    private String semester = "";
+    private String joinedDate = "";
+    private String avatar = "";
+    private String passwordHash = "";
+
     public User(String userId, String name, String email, String phone, boolean membershipActive, double outstandingFine, int currentBorrowedCount, String role) {
         this.userId = userId;
         this.name = name;
@@ -45,9 +53,27 @@ public class User {
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
 
+    public int getMaxLoans() { return maxLoans; }
+    public void setMaxLoans(int maxLoans) { this.maxLoans = maxLoans; }
+
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+
+    public String getSemester() { return semester; }
+    public void setSemester(String semester) { this.semester = semester; }
+
+    public String getJoinedDate() { return joinedDate; }
+    public void setJoinedDate(String joinedDate) { this.joinedDate = joinedDate; }
+
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
+
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+
     @Override
     public String toString() {
-        return String.format("User[ID=%s, Name=%s, Email=%s, Active=%b, Fine=$%.2f, Borrowed=%d, Role=%s]",
-                userId, name, email, membershipActive, outstandingFine, currentBorrowedCount, role);
+        return String.format("User[ID=%s, Name=%s, Email=%s, Active=%b, Fine=$%.2f, Borrowed=%d, Role=%s, MaxLoans=%d]",
+                userId, name, email, membershipActive, outstandingFine, currentBorrowedCount, role, maxLoans);
     }
 }

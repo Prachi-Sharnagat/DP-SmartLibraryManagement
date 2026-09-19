@@ -158,7 +158,7 @@ export const ResourceDetails = ({ resource, onBack, onNavigateToIssue, onOpenRes
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                {currentUser.role !== 'STUDENT' && !resource.isReferenceOnly && (
+                {currentUser.role !== 'MEMBER' && !resource.isReferenceOnly && (
                   <button onClick={() => onNavigateToIssue(resource)} className="btn-primary">
                     <ArrowLeftRight size={15} />
                     <span>Issue Book</span>

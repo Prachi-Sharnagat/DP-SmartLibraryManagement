@@ -92,7 +92,7 @@ export const ReturnBook = ({ onReturnSuccess }) => {
           Return Book
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-          Process resource returns, calculate overdue fines, and trigger automated reservation Observer notifications.
+          Process resource returns, calculate overdue fines, and trigger automated reservation notifications.
         </p>
       </div>
 
@@ -224,7 +224,7 @@ export const ReturnBook = ({ onReturnSuccess }) => {
               <Clock size={20} color="#2563EB" style={{ shrink: 0, marginTop: '2px' }} />
               <div>
                 <div style={{ fontWeight: 600, color: '#1E40AF', fontSize: '0.875rem' }}>
-                  Observer Pattern Alert: Waitlist Member Waiting
+                  Waitlist Member Waiting
                 </div>
                 <div style={{ fontSize: '0.775rem', color: '#1E3A8A', marginTop: '2px' }}>
                   {waitingObserver.memberName || waitingObserver.userName} is waiting for this item. Returning it will automatically dispatch notifications via {waitingObserver.notificationChannels ? waitingObserver.notificationChannels.join(', ') : 'Email & In-App'}.

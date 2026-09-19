@@ -20,15 +20,15 @@ export const Sidebar = ({ activeTab, setActiveTab, onLogout }) => {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['STUDENT', 'LIBRARIAN', 'ADMIN'] },
-    { id: 'catalog', label: 'Catalog', icon: BookOpen, roles: ['STUDENT', 'LIBRARIAN', 'ADMIN'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['MEMBER', 'LIBRARIAN', 'ADMIN'] },
+    { id: 'catalog', label: 'Catalog', icon: BookOpen, roles: ['MEMBER', 'LIBRARIAN', 'ADMIN'] },
     { id: 'circulation', label: 'Issue / Return', icon: ArrowLeftRight, roles: ['LIBRARIAN', 'ADMIN'] },
-    { id: 'reservations', label: 'Reservations', icon: BookmarkCheck, roles: ['STUDENT', 'LIBRARIAN', 'ADMIN'] },
+    { id: 'reservations', label: 'Reservations', icon: BookmarkCheck, roles: ['MEMBER', 'LIBRARIAN', 'ADMIN'] },
     { id: 'members', label: 'Members', icon: Users, roles: ['LIBRARIAN', 'ADMIN'] },
-    { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadCount, roles: ['STUDENT', 'LIBRARIAN', 'ADMIN'] },
+    { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadCount, roles: ['MEMBER', 'LIBRARIAN', 'ADMIN'] },
     { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['LIBRARIAN', 'ADMIN'] },
     { id: 'audit', label: 'Audit Logs', icon: ShieldCheck, roles: ['LIBRARIAN', 'ADMIN'] },
-    { id: 'settings', label: 'Settings', icon: Settings, roles: ['STUDENT', 'LIBRARIAN', 'ADMIN'] }
+    { id: 'settings', label: 'Settings', icon: Settings, roles: ['MEMBER', 'LIBRARIAN', 'ADMIN'] }
   ];
 
   const visibleNav = navItems.filter((item) => item.roles.includes(currentUser.role));

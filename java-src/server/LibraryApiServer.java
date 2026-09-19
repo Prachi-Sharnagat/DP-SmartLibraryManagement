@@ -46,6 +46,9 @@ public class LibraryApiServer {
         server.setExecutor(Executors.newFixedThreadPool(10));
 
         // Register API Handlers
+        server.createContext("/api/login", new LoginHandler());
+        server.createContext("/api/logout", new LogoutHandler());
+        server.createContext("/api/users/me", new AuthMeHandler());
         server.createContext("/api/health", new HealthHandler());
         server.createContext("/api/stats", new StatsHandler());
         server.createContext("/api/resources", new ResourcesHandler());
@@ -108,11 +111,15 @@ public class LibraryApiServer {
     }
 
     private static String getCallerUserId(HttpExchange exchange) {
-        String uid = exchange.getRequestHeaders().getFirst("X-User-Id");
-        if (uid != null && !uid.trim().isEmpty()) {
-            return uid.trim();
+        String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            String userId = service.AuthService.validateToken(token);
+            if (userId != null) {
+                return userId;
+            }
         }
-        return "U999"; // default to Admin caller for frontend actions unless specified
+        return null;
     }
 
     // 1. Health Handler
@@ -126,6 +133,63 @@ public class LibraryApiServer {
             String json = String.format("{\"status\":\"UP\",\"sqliteActive\":%b,\"patterns\":[\"Factory\",\"Chain\",\"Observer\",\"Proxy\",\"Bridge\"],\"timestamp\":%d}",
                     db.isSqliteActive(), System.currentTimeMillis());
             sendCorsAndHeaders(exchange, 200, JsonUtils.success("System healthy", json));
+        }
+    }
+
+    private class LoginHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 405, JsonUtils.error("Method Not Allowed", "METHOD_NOT_ALLOWED", 405));
+                return;
+            }
+            String body = readRequestBody(exchange);
+            Map<String, String> data = JsonUtils.parseSimpleJson(body);
+            String emailOrId = data.get("emailOrId");
+            String password = data.get("password");
+
+            String token = service.AuthService.authenticate(emailOrId, password);
+            if (token != null) {
+                User user = db.getUserByEmailOrId(emailOrId);
+                String json = String.format("{\"token\":\"%s\",\"user\":%s}", token, JsonUtils.userToJson(user));
+                sendCorsAndHeaders(exchange, 200, JsonUtils.success("Login successful", json));
+            } else {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Invalid email or password", "UNAUTHORIZED", 401));
+            }
+        }
+    }
+
+    private class LogoutHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+            service.AuthService.logout(authHeader);
+            sendCorsAndHeaders(exchange, 200, JsonUtils.success("Logged out", "null"));
+        }
+    }
+
+    private class AuthMeHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            String caller = getCallerUserId(exchange);
+            if (caller == null) {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Not authenticated", "UNAUTHORIZED", 401));
+                return;
+            }
+            User user = db.getUser(caller);
+            sendCorsAndHeaders(exchange, 200, JsonUtils.success("Authenticated user", JsonUtils.userToJson(user)));
         }
     }
 
@@ -171,6 +235,10 @@ public class LibraryApiServer {
             }
 
             String caller = getCallerUserId(exchange);
+            if (caller == null) {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Not authenticated", "UNAUTHORIZED", 401));
+                return;
+            }
 
             if ("GET".equals(method)) {
                 List<LibraryResource> list = db.getAllResources();
@@ -304,6 +372,10 @@ public class LibraryApiServer {
             }
 
             String caller = getCallerUserId(exchange);
+            if (caller == null) {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Not authenticated", "UNAUTHORIZED", 401));
+                return;
+            }
             String body = readRequestBody(exchange);
             Map<String, String> data = JsonUtils.parseSimpleJson(body);
 
@@ -335,6 +407,10 @@ public class LibraryApiServer {
             }
 
             String caller = getCallerUserId(exchange);
+            if (caller == null) {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Not authenticated", "UNAUTHORIZED", 401));
+                return;
+            }
             String body = readRequestBody(exchange);
             Map<String, String> data = JsonUtils.parseSimpleJson(body);
             String resourceId = data.get("resourceId");
@@ -417,7 +493,7 @@ public class LibraryApiServer {
                 db.addReservation(record);
 
                 // Dispatch Bridge pattern notification confirmation
-                notif.send(user.getName(), "Reservation confirmed for '" + res.getTitle() + "'.");
+                notif.send(user, "Reservation confirmed for '" + res.getTitle() + "'.");
 
                 db.addNotification(new NotificationRecord(
                         "NOTIF-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(),
@@ -484,7 +560,7 @@ public class LibraryApiServer {
             }
 
             Notification notif = new BookAvailableNotification(channel);
-            notif.send(recipient, message);
+            notif.send(u, message);
 
             NotificationRecord record = new NotificationRecord(
                     "NOTIF-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(),

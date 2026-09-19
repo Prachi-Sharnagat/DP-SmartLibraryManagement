@@ -1,5 +1,7 @@
 package bridge;
 
+import model.User;
+
 /**
  * Abstraction in the Bridge Pattern.
  * Decouples the notification content/logic from the delivery mechanism channel.
@@ -19,5 +21,5 @@ public abstract class Notification {
         return channel;
     }
 
-    public abstract void send(String recipient, String message);
+    public abstract void send(User recipient, String message);
 }

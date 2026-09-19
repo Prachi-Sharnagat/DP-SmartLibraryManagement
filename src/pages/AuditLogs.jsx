@@ -32,7 +32,7 @@ export const AuditLogs = () => {
           </h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          High-resolution security & execution telemetry captured via Proxy Architecture.
+          High-resolution security & execution telemetry.
         </p>
       </div>
 

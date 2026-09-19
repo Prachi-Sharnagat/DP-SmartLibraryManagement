@@ -1,9 +1,10 @@
 package factory;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Factory Pattern Implementation for creating Library Resources.
+ * Registry and legacy adapter for the GoF Factory Method implementation.
  */
 public class ResourceFactory {
 
@@ -13,44 +14,52 @@ public class ResourceFactory {
         JOURNAL
     }
 
+    private static final Map<ResourceType, ResourceCreator> creators = new HashMap<>();
+
+    static {
+        creators.put(ResourceType.BOOK, new BookCreator());
+        creators.put(ResourceType.EBOOK, new EBookCreator());
+        creators.put(ResourceType.JOURNAL, new JournalCreator());
+    }
+
+    public static ResourceCreator getCreator(ResourceType type) {
+        ResourceCreator creator = creators.get(type);
+        if (creator == null) {
+            throw new IllegalArgumentException("No creator registered for Resource Type: " + type);
+        }
+        return creator;
+    }
+
+    // Modern GoF Usage via Registry
     public static LibraryResource createResource(ResourceType type, Map<String, Object> params) {
         String id = (String) params.get("id");
         String title = (String) params.get("title");
-
-        switch (type) {
-            case BOOK:
-                String author = (String) params.getOrDefault("author", "Unknown Author");
-                String isbn = (String) params.getOrDefault("isbn", "N/A");
-                String shelfLocation = (String) params.getOrDefault("shelfLocation", "General Shelf");
-                return new Book(id, title, author, isbn, shelfLocation);
-
-            case EBOOK:
-                String ebookAuthor = (String) params.getOrDefault("author", "Unknown Author");
-                double size = params.containsKey("fileSizeMB") ? ((Number) params.get("fileSizeMB")).doubleValue() : 5.0;
-                String format = (String) params.getOrDefault("downloadFormat", "PDF");
-                return new EBook(id, title, ebookAuthor, size, format);
-
-            case JOURNAL:
-                String publisher = (String) params.getOrDefault("publisher", "Academic Press");
-                int volume = params.containsKey("volumeNumber") ? ((Number) params.get("volumeNumber")).intValue() : 1;
-                int issue = params.containsKey("issueNumber") ? ((Number) params.get("issueNumber")).intValue() : 1;
-                boolean isReferenceOnly = params.containsKey("isReferenceOnly") ? (Boolean) params.get("isReferenceOnly") : false;
-                return new Journal(id, title, publisher, volume, issue, isReferenceOnly);
-
-            default:
-                throw new IllegalArgumentException("Unknown Resource Type: " + type);
-        }
+        return getCreator(type).instantiate(id, title, params);
     }
 
+    // Legacy Support methods (Delegating to GoF Creators)
     public static LibraryResource createBook(String id, String title, String author, String isbn, String shelfLocation) {
-        return new Book(id, title, author, isbn, shelfLocation);
+        Map<String, Object> params = new HashMap<>();
+        params.put("author", author);
+        params.put("isbn", isbn);
+        params.put("shelfLocation", shelfLocation);
+        return getCreator(ResourceType.BOOK).instantiate(id, title, params);
     }
 
     public static LibraryResource createEBook(String id, String title, String author, double fileSizeMB, String format) {
-        return new EBook(id, title, author, fileSizeMB, format);
+        Map<String, Object> params = new HashMap<>();
+        params.put("author", author);
+        params.put("fileSizeMB", fileSizeMB);
+        params.put("downloadFormat", format);
+        return getCreator(ResourceType.EBOOK).instantiate(id, title, params);
     }
 
     public static LibraryResource createJournal(String id, String title, String publisher, int volumeNumber, int issueNumber, boolean isReferenceOnly) {
-        return new Journal(id, title, publisher, volumeNumber, issueNumber, isReferenceOnly);
+        Map<String, Object> params = new HashMap<>();
+        params.put("publisher", publisher);
+        params.put("volumeNumber", volumeNumber);
+        params.put("issueNumber", issueNumber);
+        params.put("isReferenceOnly", isReferenceOnly);
+        return getCreator(ResourceType.JOURNAL).instantiate(id, title, params);
     }
 }

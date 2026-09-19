@@ -24,7 +24,7 @@ export const Reservations = ({ onOpenReserveModal }) => {
             Reservations
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Manage active and completed book reservations (Observer Pattern Waitlists).
+            Manage active and completed book reservations.
           </p>
         </div>
 
@@ -71,7 +71,7 @@ export const Reservations = ({ onOpenReserveModal }) => {
               <th>Resource</th>
               <th>Member</th>
               <th>Queue Position</th>
-              <th>Bridge Channels</th>
+              <th>Alert Channels</th>
               <th>Status</th>
               <th style={{ textAlign: 'right' }}>Action</th>
             </tr>
@@ -122,12 +122,12 @@ export const Reservations = ({ onOpenReserveModal }) => {
                     <Badge status={item.status} />
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    {currentUser.role !== 'STUDENT' && item.status !== 'COMPLETED' && (
+                    {currentUser.role !== 'MEMBER' && item.status !== 'COMPLETED' && (
                       <button
                         onClick={() => notifyReservedMember(item.id)}
                         className="btn-secondary"
                         style={{ padding: '4px 10px', fontSize: '0.775rem', color: 'var(--primary)' }}
-                        title="Send manual observer alert via configured bridge channels"
+                        title="Send manual alert"
                       >
                         <Send size={12} />
                         <span>Notify Member</span>

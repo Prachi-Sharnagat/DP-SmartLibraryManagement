@@ -18,9 +18,8 @@ import { Modal } from './components/common/Modal';
 import { ArrowLeftRight, Clock, BookmarkCheck, UserPlus } from 'lucide-react';
 
 const MainApp = () => {
-  const { currentUser, reserveResource, addMember, resources, users } = useLibrary();
+  const { currentUser, authLoading, logout, reserveResource, addMember, resources, users } = useLibrary();
 
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [circulationMode, setCirculationMode] = useState('issue'); // 'issue' | 'return'
   const [inspectedResource, setInspectedResource] = useState(null);
@@ -36,11 +35,15 @@ const MainApp = () => {
   // Add Member Form state
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState('STUDENT');
+  const [newMemberRole, setNewMemberRole] = useState('MEMBER');
   const [newMemberDept, setNewMemberDept] = useState('Computer Science & Engineering');
 
-  if (!isAuthenticated) {
-    return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;
+  if (authLoading) {
+    return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
+  }
+
+  if (!currentUser) {
+    return <Login />;
   }
 
   // Navigation helper
@@ -95,7 +98,7 @@ const MainApp = () => {
         setActiveTab(tab);
         if (tab !== 'details') setInspectedResource(null);
       }}
-      onLogout={() => setIsAuthenticated(false)}
+      onLogout={logout}
       onSelectResource={handleSelectResource}
     >
       {/* 1. Dashboard */}
@@ -137,14 +140,14 @@ const MainApp = () => {
               className={circulationMode === 'issue' ? 'btn-primary' : 'btn-secondary'}
             >
               <ArrowLeftRight size={15} />
-              <span>Issue Resource (Chain of Responsibility)</span>
+              <span>Issue Resource</span>
             </button>
             <button
               onClick={() => setCirculationMode('return')}
               className={circulationMode === 'return' ? 'btn-primary' : 'btn-secondary'}
             >
               <Clock size={15} />
-              <span>Return Resource (Observer Alerts)</span>
+              <span>Return Resource</span>
             </button>
           </div>
 
@@ -188,12 +191,11 @@ const MainApp = () => {
       {/* 9. Settings */}
       {activeTab === 'settings' && <Settings />}
 
-      {/* Modal: Add Resource (Factory Method) */}
+      {/* Modal: Add Resource */}
       <Modal
         isOpen={isAddResourceOpen}
         onClose={() => setIsAddResourceOpen(false)}
         title="Add Library Resource"
-        subtitle="Instantiate resources via Factory Method pattern (Book, DRM E-Book, Journal)"
         maxWidth="680px"
       >
         <AddResource
@@ -238,7 +240,7 @@ const MainApp = () => {
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>Role</label>
             <select value={newMemberRole} onChange={(e) => setNewMemberRole(e.target.value)} className="input-base">
-              <option value="STUDENT">Student (5 max loans)</option>
+              <option value="MEMBER">Member (5 max loans)</option>
               <option value="LIBRARIAN">Librarian (10 max loans)</option>
               <option value="ADMIN">Admin Staff (20 max loans)</option>
             </select>
@@ -270,7 +272,6 @@ const MainApp = () => {
           setReserveTargetResourceId('');
         }}
         title="Reserve Resource & Subscribe to Alerts"
-        subtitle="Observer Pattern Waitlist Registration with Bridge Channel Delivery"
         maxWidth="520px"
       >
         <form onSubmit={handleConfirmReservation} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -304,7 +305,7 @@ const MainApp = () => {
 
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '8px' }}>
-              Dispatch Notification Channels (Bridge Pattern)
+              Dispatch Notification Channels
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {[

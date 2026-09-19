@@ -14,10 +14,8 @@ const LibraryContext = createContext();
 
 export const LibraryProvider = ({ children }) => {
   // Current user state (Default: Admin / Prachi)
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('smart_lib_user');
-    return saved ? JSON.parse(saved) : INITIAL_USERS[0];
-  });
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Backend Connectivity State
   const [isBackendOnline, setIsBackendOnline] = useState(false);
@@ -164,7 +162,7 @@ export const LibraryProvider = ({ children }) => {
       setIsBackendOnline(false);
     }
     setIsSyncing(false);
-  }, []);
+  }, [currentUser]);
 
   // Poll backend health periodically
   useEffect(() => {
@@ -173,10 +171,22 @@ export const LibraryProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [syncWithBackend]);
 
-  // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem('smart_lib_user', JSON.stringify(currentUser));
-  }, [currentUser]);
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const res = await api.getMe();
+        if (res.ok && res.data?.data) {
+          setCurrentUser(res.data.data);
+        } else {
+          localStorage.removeItem('token');
+          setCurrentUser(null);
+        }
+      }
+      setAuthLoading(false);
+    };
+    initAuth();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('smart_lib_users', JSON.stringify(users));
@@ -202,14 +212,22 @@ export const LibraryProvider = ({ children }) => {
     localStorage.setItem('smart_lib_audit_logs', JSON.stringify(auditLogs));
   }, [auditLogs]);
 
-  // Switch User (Role-Based Testing)
-  const switchUser = (userId) => {
-    const found = users.find((u) => u.id === userId || u.userId === userId);
-    if (found) {
-      setCurrentUser(found);
-      recordAuditLog('USER_SWITCH', `Switched active session to ${found.name}`);
-      showToast(`Switched active profile to ${found.name} (${found.role})`, 'info');
+  const login = async (emailOrId, password) => {
+    const res = await api.login(emailOrId, password);
+    if (res.ok && res.data?.data) {
+      const { token, user } = JSON.parse(res.data.data);
+      localStorage.setItem('token', token);
+      setCurrentUser(user);
+      return { success: true };
     }
+    return { success: false, error: res.data?.message || 'Login failed' };
+  };
+
+  const logout = async () => {
+    await api.logout();
+    localStorage.removeItem('token');
+    setCurrentUser(null);
+    window.location.href = '/login';
   };
 
   // ==========================================
@@ -330,9 +348,9 @@ export const LibraryProvider = ({ children }) => {
 
     // Call Java REST API if online
     if (isBackendOnline) {
-      const apiRes = await api.issueResource(memberId, resourceId, currentUser.id || currentUser.userId);
+      const apiRes = await api.issueResource(memberId, resourceId);
       if (!apiRes.ok) {
-        const errMsg = apiRes.data?.message || apiRes.data?.error || 'Failed to issue via Java Chain of Responsibility';
+        const errMsg = apiRes.data?.message || apiRes.data?.error || 'Failed to issue resource';
         showToast(errMsg, 'error');
         recordAuditLog('ISSUE_ERROR', errMsg, 15, 'FAILED');
         return false;
@@ -415,7 +433,7 @@ export const LibraryProvider = ({ children }) => {
 
     // Call Java Backend if online
     if (isBackendOnline && targetLoan.resourceId) {
-      await api.returnResource(targetLoan.resourceId, currentUser.id || currentUser.userId);
+      await api.returnResource(targetLoan.resourceId);
     }
 
     // Mark loan returned
@@ -488,7 +506,7 @@ export const LibraryProvider = ({ children }) => {
         id: `NOTIF-${Date.now()}`,
         userId: topObserver.memberId || topObserver.userId,
         type: 'BOOK_AVAILABLE',
-        title: 'Book Available for Pickup (Observer Triggered)',
+        title: 'Book Available for Pickup',
         message: `'${targetLoan.resourceTitle || freedResource?.title}' has been returned and is reserved for you at Rack ${freedResource?.location || 'CS-01'}. Please collect within 48 hours.`,
         timestamp: 'Just now',
         read: false,
@@ -499,7 +517,7 @@ export const LibraryProvider = ({ children }) => {
       setNotifications((prev) => [newNotif, ...prev]);
 
       showToast(
-        `✓ Book returned. Observer pattern triggered: Notified ${topObserver.memberName || topObserver.userName} via ${newNotif.channels.join(', ')}`,
+        `✓ Book returned. Notified ${topObserver.memberName || topObserver.userName} via ${newNotif.channels.join(', ')}`,
         'info'
       );
     } else {
@@ -588,7 +606,7 @@ export const LibraryProvider = ({ children }) => {
   // Create Resources Dynamically by Type
   // ==========================================
   const addResource = async (formData) => {
-    if (currentUser.role === 'STUDENT') {
+    if (currentUser.role === 'MEMBER') {
       showToast('Access Denied: Only Librarian or Admin staff can add resources.', 'error');
       recordAuditLog('ADD_RESOURCE_DENIED', `Unauthorized attempt by ${currentUser.name}`, 8, 'UNAUTHORIZED');
       return false;
@@ -628,11 +646,11 @@ export const LibraryProvider = ({ children }) => {
         shelfLocation: newRes.location,
         fileSizeMB: newRes.fileSizeMB,
         publisher: newRes.publisher
-      }, currentUser.id || currentUser.userId);
+      });
     }
 
     setResources((prev) => [newRes, ...prev]);
-    recordAuditLog('ADD_RESOURCE', `Created ${type} via Factory: '${title}' (ID: ${newRes.id})`, 28);
+    recordAuditLog('ADD_RESOURCE', `Created ${type}: '${title}' (ID: ${newRes.id})`, 28);
     showToast(`✓ Added new ${type.toLowerCase()}: '${title}'`, 'success');
     return true;
   };
@@ -651,7 +669,7 @@ export const LibraryProvider = ({ children }) => {
       name: userData.name,
       email: userData.email,
       phone: userData.phone || '+91 99999 00000',
-      role: userData.role || 'STUDENT',
+      role: userData.role || 'MEMBER',
       status: 'ACTIVE',
       membershipActive: true,
       currentLoans: 0,
@@ -697,7 +715,9 @@ export const LibraryProvider = ({ children }) => {
       value={{
         currentUser,
         setCurrentUser,
-        switchUser,
+        authLoading,
+        login,
+        logout,
         users,
         resources,
         loans,

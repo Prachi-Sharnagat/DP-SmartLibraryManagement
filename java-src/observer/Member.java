@@ -3,6 +3,8 @@ package observer;
 import bridge.Notification;
 import model.User;
 
+import java.util.Objects;
+
 /**
  * Concrete Observer representing a library Member subscribed to resource notifications.
  * Uses the Bridge Pattern (Notification) to deliver alerts via configured channels.
@@ -40,17 +42,21 @@ public class Member implements Observer {
                 user.getName(), user.getUserId(), eventType, resourceTitle, resourceId);
 
         if (notificationBridge != null) {
-            String recipient;
-            String chName = notificationBridge.getChannel() != null ? notificationBridge.getChannel().getChannelName() : "EMAIL";
-            if ("SMS".equalsIgnoreCase(chName)) {
-                recipient = user.getPhone() != null ? user.getPhone() : user.getEmail();
-            } else if ("IN_APP".equalsIgnoreCase(chName)) {
-                recipient = user.getUserId();
-            } else {
-                recipient = user.getEmail() != null ? user.getEmail() : user.getPhone();
-            }
             String message = String.format("Resource '%s' has a new update: %s. (%s)", resourceTitle, eventType, details);
-            notificationBridge.send(recipient, message);
+            notificationBridge.send(user, message);
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Member member = (Member) o;
+        return Objects.equals(getObserverId(), member.getObserverId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getObserverId());
     }
 }

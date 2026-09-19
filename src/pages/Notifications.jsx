@@ -22,7 +22,7 @@ export const Notifications = () => {
             Notification Center
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Multi-channel alerts dispatched via Bridge Architecture (Email, SMS, In-App).
+            Multi-channel alerts dispatched (Email, SMS, In-App).
           </p>
         </div>
 
@@ -104,7 +104,7 @@ export const Notifications = () => {
 
               {/* Bridge Channels Indicator */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.05)', fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-                <span style={{ fontWeight: 600 }}>Bridge Dispatch:</span>
+                <span style={{ fontWeight: 600 }}>Dispatch:</span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: item.channels.includes('EMAIL') ? '#16A34A' : 'var(--text-light)' }}>
                     <Mail size={12} /> Email {item.channels.includes('EMAIL') && '✓'}

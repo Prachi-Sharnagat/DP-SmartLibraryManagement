@@ -36,7 +36,7 @@ export const Dashboard = ({ onNavigate, onOpenAddResource, onOpenAddMember }) =>
 
         {/* Quick Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {currentUser.role !== 'STUDENT' && (
+          {currentUser.role !== 'MEMBER' && (
             <>
               <button onClick={() => onNavigate('circulation', 'issue')} className="btn-primary">
                 <ArrowLeftRight size={15} />
@@ -58,7 +58,7 @@ export const Dashboard = ({ onNavigate, onOpenAddResource, onOpenAddMember }) =>
               )}
             </>
           )}
-          {currentUser.role === 'STUDENT' && (
+          {currentUser.role === 'MEMBER' && (
             <>
               <button onClick={() => onNavigate('catalog')} className="btn-primary">
                 <BookOpen size={15} />
@@ -200,7 +200,7 @@ export const Dashboard = ({ onNavigate, onOpenAddResource, onOpenAddMember }) =>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 600 }}>Recent Activity</h3>
               <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>Live operations audit stream</p>
             </div>
-            {currentUser.role !== 'STUDENT' && (
+            {currentUser.role !== 'MEMBER' && (
               <button
                 onClick={() => onNavigate('audit')}
                 style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}

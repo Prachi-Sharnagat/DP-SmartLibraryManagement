@@ -1,8 +1,10 @@
 package observer;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -10,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ReservationManager implements Subject {
     private static ReservationManager instance;
-    private final Map<String, List<Observer>> resourceWaitlists = new ConcurrentHashMap<>();
+    private final Map<String, Set<Observer>> resourceWaitlists = new ConcurrentHashMap<>();
 
     public static synchronized ReservationManager getInstance() {
         if (instance == null) {
@@ -21,14 +23,14 @@ public class ReservationManager implements Subject {
 
     @Override
     public void registerObserver(String resourceId, Observer observer) {
-        resourceWaitlists.computeIfAbsent(resourceId, k -> new ArrayList<>()).add(observer);
+        resourceWaitlists.computeIfAbsent(resourceId, k -> new LinkedHashSet<>()).add(observer);
         System.out.printf("  [ReservationManager] Observer '%s' registered for Resource ID: %s%n",
                 observer.getObserverName(), resourceId);
     }
 
     @Override
     public void removeObserver(String resourceId, Observer observer) {
-        List<Observer> observers = resourceWaitlists.get(resourceId);
+        Set<Observer> observers = resourceWaitlists.get(resourceId);
         if (observers != null) {
             observers.remove(observer);
             System.out.printf("  [ReservationManager] Observer '%s' removed from waitlist for Resource ID: %s%n",
@@ -38,14 +40,19 @@ public class ReservationManager implements Subject {
 
     @Override
     public void notifyObservers(String resourceId, String resourceTitle, String eventType, String details) {
-        List<Observer> observers = resourceWaitlists.get(resourceId);
+        Set<Observer> observers = resourceWaitlists.get(resourceId);
         if (observers != null && !observers.isEmpty()) {
             System.out.printf("  [ReservationManager] Broadcasting '%s' event for '%s' to %d observer(s)...%n",
                     eventType, resourceTitle, observers.size());
             // Make a copy to avoid concurrent modification if observers unregister during callback
             List<Observer> copy = new ArrayList<>(observers);
             for (Observer obs : copy) {
-                obs.update(resourceId, resourceTitle, eventType, details);
+                try {
+                    obs.update(resourceId, resourceTitle, eventType, details);
+                } catch (Exception e) {
+                    System.err.printf("  [ReservationManager] Error notifying observer '%s': %s%n",
+                            obs.getObserverName(), e.getMessage());
+                }
             }
         } else {
             System.out.printf("  [ReservationManager] No waitlist observers registered for Resource ID: %s%n", resourceId);
@@ -53,7 +60,7 @@ public class ReservationManager implements Subject {
     }
 
     public List<Observer> getWaitlist(String resourceId) {
-        return resourceWaitlists.getOrDefault(resourceId, new ArrayList<>());
+        return new ArrayList<>(resourceWaitlists.getOrDefault(resourceId, new LinkedHashSet<>()));
     }
 
     public void clearWaitlist(String resourceId) {

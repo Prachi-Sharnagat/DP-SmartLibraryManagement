@@ -27,7 +27,7 @@ export const Settings = () => {
           System Settings & Policies
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-          Configure circulation policies, lending quotas, fine calculations, and notification bridges.
+          Configure circulation policies, lending quotas, fine calculations, and notification channels.
         </p>
       </div>
 
@@ -89,9 +89,9 @@ export const Settings = () => {
 
         {/* Bridge Notification Dispatchers */}
         <div className="card-base" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '4px' }}>Notification Bridge Channels</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-            Enable or disable active delivery channels decoupled via Bridge Pattern.
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '4px' }}>Notification Channels</h3>
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+            Enable or disable active delivery channels.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -142,28 +142,6 @@ export const Settings = () => {
                 style={{ accentColor: 'var(--primary)', cursor: 'pointer', width: '18px', height: '18px' }}
               />
             </label>
-          </div>
-        </div>
-
-        {/* Design Pattern Architecture Summary Card */}
-        <div className="card-base" style={{ padding: '24px', backgroundColor: '#F8FAFC' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '12px' }}>Software Engineering Architecture Overview</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', fontSize: '0.8rem' }}>
-            <div style={{ padding: '10px', backgroundColor: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <strong>Factory Pattern:</strong> Polymorphic creation of Books, E-Books, and Journals.
-            </div>
-            <div style={{ padding: '10px', backgroundColor: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <strong>Chain of Responsibility:</strong> 6-stage circulation policy validation pipeline.
-            </div>
-            <div style={{ padding: '10px', backgroundColor: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <strong>Observer Pattern:</strong> Automated waitlist reservation events & alerts on return.
-            </div>
-            <div style={{ padding: '10px', backgroundColor: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <strong>Bridge Pattern:</strong> Notification abstraction decoupled from delivery channels.
-            </div>
-            <div style={{ padding: '10px', backgroundColor: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <strong>Proxy Pattern:</strong> RBAC security access control and latency audit logging.
-            </div>
           </div>
         </div>
 

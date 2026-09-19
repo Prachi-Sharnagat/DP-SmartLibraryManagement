@@ -51,11 +51,11 @@ export const Catalog = ({ onSelectResource, onOpenAddResource, onNavigateToIssue
             Library Catalog
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Multi-tier factory catalog with physical books, DRM eBooks, and academic research journals.
+            Browse and search library resources.
           </p>
         </div>
 
-        {currentUser.role !== 'STUDENT' && (
+        {currentUser.role !== 'MEMBER' && (
           <button onClick={onOpenAddResource} className="btn-primary">
             <Plus size={16} />
             <span>Add Resource</span>
@@ -210,7 +210,7 @@ export const Catalog = ({ onSelectResource, onOpenAddResource, onNavigateToIssue
                           onClick={() => onOpenReserveModal(item)}
                           className="btn-secondary"
                           style={{ padding: '4px 10px', fontSize: '0.75rem', color: '#9333EA', borderColor: '#E9D5FF', backgroundColor: '#FAF5FF' }}
-                          title="Join Waitlist (Observer Pattern)"
+                          title="Join Waitlist"
                         >
                           <BookmarkCheck size={13} />
                           <span>Reserve</span>

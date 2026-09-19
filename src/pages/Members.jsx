@@ -46,7 +46,7 @@ export const Members = ({ onOpenAddMember }) => {
           </p>
         </div>
 
-        {currentUser.role !== 'STUDENT' && (
+        {currentUser.role !== 'MEMBER' && (
           <button onClick={onOpenAddMember} className="btn-primary">
             <UserPlus size={16} />
             <span>Add Member</span>

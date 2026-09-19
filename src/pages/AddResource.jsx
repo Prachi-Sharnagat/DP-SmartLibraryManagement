@@ -47,9 +47,9 @@ export const AddResource = ({ onClose, onSuccess }) => {
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Resource Type Selection (Factory Method) */}
       <div>
-        <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>
-          Resource Type (Factory Method Pattern)
-        </label>
+          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '6px' }}>
+            Resource Type
+          </label>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
           {[
             { id: 'BOOK', label: 'Physical Book', sub: 'Standard print edition' },
