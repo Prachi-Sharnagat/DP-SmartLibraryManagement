@@ -1,47 +1,49 @@
 package proxy;
 
-import chain.*;
+import chain.ReservationHandler;
 import database.Database;
+import factory.Book;
 import factory.LibraryResource;
+import mediator.LibraryMediator;
+import mediator.LibraryMediatorImpl;
+import memento.LibraryHistory;
+import memento.ResourceMemento;
 import model.BorrowResult;
 import model.Loan;
 import model.ReturnResult;
 import model.User;
-import observer.Observer;
 import observer.ReservationManager;
+import strategy.FineCalculationResult;
+import strategy.FineCalculationStrategy;
+import strategy.FineStrategyFactory;
+import template.IssueBookTransaction;
+import template.LibraryTransaction;
+import template.ReturnBookTransaction;
+import template.TransactionResult;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
- * Concrete Subject / Real Service executing core library business logic.
+ * Concrete Subject / Real Service executing library business logic.
+ * Integrates:
+ * - Template Method: IssueBookTransaction & ReturnBookTransaction
+ * - Mediator: LibraryMediator coordinating return circulation
+ * - Strategy: FineStrategyFactory for dynamic role-based fine calculations
+ * - Prototype: createBookCopy cloning metadata into independent records
+ * - Memento: updateResourceMetadata & undoLastEdit safe compensating rollback
  */
 public class RealLibraryService implements LibraryService {
     private final Database db;
-    private final ValidationHandler validationChain;
     private final ReservationManager reservationManager;
+    private final LibraryMediator mediator;
+    private final LibraryHistory history;
 
     public RealLibraryService() {
         this.db = Database.getInstance();
         this.reservationManager = ReservationManager.getInstance();
-
-        // Assemble the Chain of Responsibility
-        ValidationHandler membershipHandler = new MembershipHandler();
-        ValidationHandler fineHandler = new FineHandler();
-        ValidationHandler limitHandler = new BorrowLimitHandler();
-        ValidationHandler availabilityHandler = new AvailabilityHandler();
-        ValidationHandler reservationHandler = new ReservationHandler();
-
-        membershipHandler
-                .setNext(fineHandler)
-                .setNext(limitHandler)
-                .setNext(availabilityHandler)
-                .setNext(reservationHandler);
-
-        this.validationChain = membershipHandler;
+        this.mediator = LibraryMediatorImpl.getInstance();
+        this.history = LibraryHistory.getInstance();
     }
 
     @Override
@@ -50,62 +52,15 @@ public class RealLibraryService implements LibraryService {
         return res.isSuccess();
     }
 
+    /**
+     * Executes Book Checkout through the Template Method pattern (IssueBookTransaction).
+     * Enforces sequential validation, preparation, execution, persistence, and audit logging.
+     */
     @Override
     public BorrowResult borrowResourceDetailed(String callerUserId, String targetUserId, String resourceId) {
-        long start = System.currentTimeMillis();
-        User user = db.getUser(targetUserId);
-        if (user == null) {
-            return BorrowResult.fail("Member not found with ID: " + targetUserId, "MEMBER_NOT_FOUND", "UserLookup", System.currentTimeMillis() - start);
-        }
-
-        LibraryResource resource = db.getResource(resourceId);
-        if (resource == null) {
-            return BorrowResult.fail("Library resource not found with ID: " + resourceId, "RESOURCE_NOT_FOUND", "ResourceLookup", System.currentTimeMillis() - start);
-        }
-
-        System.out.println("  [RealLibraryService] Initiating validation pipeline for borrow request...");
-        ValidationHandler.ValidationResult result = validationChain.validate(user, resource);
-
-        if (!result.isValid()) {
-            System.err.println("  [RealLibraryService] Borrow Rejected: " + result.getMessage());
-            String errCode = mapFailedHandlerToErrorCode(result.getFailedHandlerName());
-            return BorrowResult.fail(result.getMessage(), errCode, result.getFailedHandlerName(), System.currentTimeMillis() - start);
-        }
-
-        // Process Borrow
-        resource.setAvailable(false);
-        user.setCurrentBorrowedCount(user.getCurrentBorrowedCount() + 1);
-
-        String loanId = "LN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        LocalDate now = LocalDate.now();
-        LocalDate dueDate = now.plusDays(resource.getMaxBorrowDays());
-
-        Loan loan = new Loan(loanId, user.getUserId(), resource.getId(), now, dueDate);
-        db.saveLoan(loan);
-        db.saveUser(user);
-        db.saveResource(resource);
-
-        // If reserved, consume reservation
-        ReservationHandler.removeReservation(resource.getId());
-        db.removeReservation(resource.getId());
-
-        long latency = System.currentTimeMillis() - start;
-        System.out.printf("  [RealLibraryService] SUCCESS: '%s' borrowed by '%s' (Due Date: %s, Loan ID: %s, %dms)%n",
-                resource.getTitle(), user.getName(), dueDate, loanId, latency);
-
-        return BorrowResult.ok("Resource issued successfully. Due date: " + dueDate, loan, latency);
-    }
-
-    private String mapFailedHandlerToErrorCode(String handlerName) {
-        if (handlerName == null) return "VALIDATION_FAILED";
-        switch (handlerName) {
-            case "MembershipHandler": return "MEMBERSHIP_INACTIVE";
-            case "FineHandler": return "FINE_LIMIT_EXCEEDED";
-            case "BorrowLimitHandler": return "BORROW_LIMIT_EXCEEDED";
-            case "AvailabilityHandler": return "RESOURCE_UNAVAILABLE";
-            case "ReservationHandler": return "RESERVED_BY_OTHER";
-            default: return "VALIDATION_FAILED";
-        }
+        LibraryTransaction transaction = new IssueBookTransaction(callerUserId, targetUserId, resourceId);
+        TransactionResult txResult = transaction.execute();
+        return (BorrowResult) txResult.getPayload();
     }
 
     @Override
@@ -114,63 +69,15 @@ public class RealLibraryService implements LibraryService {
         return res.isSuccess();
     }
 
+    /**
+     * Executes Book Return through the Template Method pattern (ReturnBookTransaction),
+     * which delegates cross-service coordination to the LibraryMediator.
+     */
     @Override
     public ReturnResult returnResourceDetailed(String callerUserId, String resourceId) {
-        long start = System.currentTimeMillis();
-        LibraryResource resource = db.getResource(resourceId);
-        if (resource == null) {
-            return new ReturnResult(false, "Resource not found with ID: " + resourceId, 0, 0, 0, System.currentTimeMillis() - start);
-        }
-
-        Loan activeLoan = db.getActiveLoanForResource(resourceId);
-        double fine = 0.0;
-        int daysOverdue = 0;
-
-        if (activeLoan != null) {
-            LocalDate today = LocalDate.now();
-            activeLoan.setReturned(true);
-            activeLoan.setReturnDate(today);
-
-            if (activeLoan.getDueDate() != null && today.isAfter(activeLoan.getDueDate())) {
-                daysOverdue = (int) ChronoUnit.DAYS.between(activeLoan.getDueDate(), today);
-                fine = daysOverdue * 0.50; // $0.50 per overdue day
-                activeLoan.setFine(fine);
-            }
-
-            db.saveLoan(activeLoan);
-
-            User borrower = db.getUser(activeLoan.getUserId());
-            if (borrower != null) {
-                if (borrower.getCurrentBorrowedCount() > 0) {
-                    borrower.setCurrentBorrowedCount(borrower.getCurrentBorrowedCount() - 1);
-                }
-                if (fine > 0) {
-                    borrower.setOutstandingFine(borrower.getOutstandingFine() + fine);
-                }
-                db.saveUser(borrower);
-            }
-        }
-
-        resource.setAvailable(true);
-        db.saveResource(resource);
-
-        // Notify Observers via ReservationManager
-        List<Observer> waitlist = reservationManager.getWaitlist(resource.getId());
-        int notifiedCount = waitlist.size();
-
-        reservationManager.notifyObservers(
-                resource.getId(),
-                resource.getTitle(),
-                "RESOURCE_AVAILABLE",
-                "Item '" + resource.getTitle() + "' is now returned and available for checkout."
-        );
-
-        long latency = System.currentTimeMillis() - start;
-        String msg = fine > 0
-                ? String.format("Resource returned with %d overdue day(s). Fine incurred: $%.2f. %d observer(s) notified.", daysOverdue, fine, notifiedCount)
-                : String.format("Resource returned on time. Inventory updated. %d observer(s) notified.", notifiedCount);
-
-        return new ReturnResult(true, msg, fine, daysOverdue, notifiedCount, latency);
+        LibraryTransaction transaction = new ReturnBookTransaction(callerUserId, resourceId, mediator);
+        TransactionResult txResult = transaction.execute();
+        return (ReturnResult) txResult.getPayload();
     }
 
     @Override
@@ -213,5 +120,102 @@ public class RealLibraryService implements LibraryService {
     public void addResource(String callerUserId, LibraryResource resource) {
         db.saveResource(resource);
         System.out.printf("  [RealLibraryService] Added new resource: '%s' (ID: %s)%n", resource.getTitle(), resource.getId());
+    }
+
+    // ==========================================
+    // PROTOTYPE DESIGN PATTERN INTEGRATION
+    // ==========================================
+
+    @Override
+    public LibraryResource createBookCopy(String callerUserId, String sourceResourceId, String newCopyId, String newShelfLocation) {
+        if (sourceResourceId == null || newCopyId == null) {
+            throw new IllegalArgumentException("Source Resource ID and New Copy ID are required.");
+        }
+
+        LibraryResource source = db.getResource(sourceResourceId);
+        if (source == null) {
+            throw new IllegalArgumentException("Source resource not found with ID: " + sourceResourceId);
+        }
+
+        if (!(source instanceof Book)) {
+            throw new UnsupportedOperationException("Prototype copy cloning is supported for physical Book catalog resources.");
+        }
+
+        if (db.getResource(newCopyId.trim()) != null) {
+            throw new IllegalStateException("Cannot create copy: A resource with ID '" + newCopyId.trim() + "' already exists in database.");
+        }
+
+        Book sourceBook = (Book) source;
+        Book copy = sourceBook.createCopy(newCopyId.trim(), newShelfLocation);
+        db.saveResource(copy);
+
+        System.out.printf("  [RealLibraryService | Prototype] Cloned new physical copy '%s' (Copy ID: %s, Shelf: %s) from source '%s'%n",
+                copy.getTitle(), copy.getId(), copy.getShelfLocation(), sourceResourceId);
+
+        return copy;
+    }
+
+    // ==========================================
+    // MEMENTO DESIGN PATTERN INTEGRATION
+    // ==========================================
+
+    @Override
+    public boolean updateResourceMetadata(String callerUserId, String resourceId, String newTitle,
+                                          String newAuthor, String newShelf, String newCategory,
+                                          String newPublisher, String newEdition, int newYear) {
+        LibraryResource res = db.getResource(resourceId);
+        if (res == null || !(res instanceof Book)) {
+            return false;
+        }
+
+        Book book = (Book) res;
+
+        // Capture snapshot into Caretaker before mutation
+        ResourceMemento snapshot = book.createMemento(String.format("Pre-update snapshot by %s", callerUserId));
+        history.pushSnapshot(snapshot);
+
+        // Mutate fields
+        if (newTitle != null && !newTitle.trim().isEmpty()) book.setTitle(newTitle.trim());
+        if (newAuthor != null && !newAuthor.trim().isEmpty()) book.setAuthor(newAuthor.trim());
+        if (newShelf != null && !newShelf.trim().isEmpty()) book.setShelfLocation(newShelf.trim());
+        if (newCategory != null && !newCategory.trim().isEmpty()) book.setCategory(newCategory.trim());
+        if (newPublisher != null && !newPublisher.trim().isEmpty()) book.setPublisher(newPublisher.trim());
+        if (newEdition != null && !newEdition.trim().isEmpty()) book.setEdition(newEdition.trim());
+        if (newYear > 0) book.setPublicationYear(newYear);
+
+        // Safe database update
+        db.saveResource(book);
+        System.out.printf("  [RealLibraryService | Memento] Saved metadata update for '%s' (ID: %s). Snapshot pushed to history.%n",
+                book.getTitle(), resourceId);
+        return true;
+    }
+
+    @Override
+    public boolean undoLastEdit(String callerUserId) {
+        ResourceMemento restored = history.undo(db, callerUserId);
+        if (restored != null) {
+            System.out.printf("  [RealLibraryService | Memento] Successfully reverted resource %s to snapshot [%s]%n",
+                    restored.getResourceId(), restored.getDescription());
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public List<ResourceMemento> getUndoHistory(String callerUserId) {
+        return history.getUndoHistory();
+    }
+
+    // ==========================================
+    // STRATEGY DESIGN PATTERN INTEGRATION
+    // ==========================================
+
+    @Override
+    public FineCalculationResult previewFine(String userId, String resourceId, int overdueDays) {
+        User user = db.getUser(userId);
+        FineCalculationStrategy strategy = FineStrategyFactory.getStrategy(user);
+        LocalDate dueDate = LocalDate.now().minusDays(Math.max(0, overdueDays));
+        LocalDate returnDate = LocalDate.now();
+        return strategy.calculateFine(dueDate, returnDate);
     }
 }

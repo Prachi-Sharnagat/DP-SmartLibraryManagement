@@ -58,6 +58,12 @@ public class JsonUtils {
             sb.append(",\"author\":\"").append(escape(b.getAuthor())).append("\"");
             sb.append(",\"isbn\":\"").append(escape(b.getIsbn())).append("\"");
             sb.append(",\"shelfLocation\":\"").append(escape(b.getShelfLocation())).append("\"");
+            sb.append(",\"publisher\":\"").append(escape(b.getPublisher())).append("\"");
+            sb.append(",\"edition\":\"").append(escape(b.getEdition())).append("\"");
+            sb.append(",\"category\":\"").append(escape(b.getCategory())).append("\"");
+            sb.append(",\"publicationYear\":").append(b.getPublicationYear());
+            sb.append(",\"totalCopies\":").append(b.getTotalCopies());
+            sb.append(",\"availableCopies\":").append(b.getAvailableCopies());
             sb.append(",\"isReferenceOnly\":false");
         } else if (res instanceof EBook) {
             EBook eb = (EBook) res;
@@ -74,6 +80,16 @@ public class JsonUtils {
         }
         sb.append("}");
         return sb.toString();
+    }
+
+    public static String mementoToJson(memento.ResourceMemento m) {
+        if (m == null) return "null";
+        return String.format(Locale.US,
+                "{\"resourceId\":\"%s\",\"title\":\"%s\",\"author\":\"%s\",\"isbn\":\"%s\",\"shelfLocation\":\"%s\",\"publisher\":\"%s\",\"edition\":\"%s\",\"category\":\"%s\",\"publicationYear\":%d,\"timestamp\":%d,\"description\":\"%s\"}",
+                escape(m.getResourceId()), escape(m.getTitle()), escape(m.getAuthor()),
+                escape(m.getIsbn()), escape(m.getShelfLocation()), escape(m.getPublisher()),
+                escape(m.getEdition()), escape(m.getCategory()), m.getPublicationYear(),
+                m.getTimestamp(), escape(m.getDescription()));
     }
 
     public static String loanToJson(Loan loan) {
@@ -101,6 +117,8 @@ public class JsonUtils {
                 sb.append(resourceToJson((LibraryResource) item));
             } else if (item instanceof Loan) {
                 sb.append(loanToJson((Loan) item));
+            } else if (item instanceof memento.ResourceMemento) {
+                sb.append(mementoToJson((memento.ResourceMemento) item));
             } else if (item instanceof String) {
                 sb.append("\"").append(escape((String) item)).append("\"");
             } else if (item instanceof Number || item instanceof Boolean) {

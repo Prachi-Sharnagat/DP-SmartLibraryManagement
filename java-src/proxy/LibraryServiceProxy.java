@@ -2,23 +2,26 @@ package proxy;
 
 import database.Database;
 import factory.LibraryResource;
+import memento.ResourceMemento;
 import model.AuditLogEntry;
 import model.BorrowResult;
 import model.Loan;
 import model.ReturnResult;
 import model.User;
+import strategy.FineCalculationResult;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 /**
  * Proxy Pattern Implementation for LibraryService.
- * Intercepts calls to provide:
- * 1. Authentication & Role-based Access Control (RBAC)
- * 2. Audit Logging & Persistent Storage
- * 3. Execution time profiling & telemetry
+ * Intercepts all calls to provide:
+ * 1. Role-based Access Control (RBAC)
+ * 2. Persistent Security & Audit Logging
+ * 3. Execution Latency Profiling
  */
 public class LibraryServiceProxy implements LibraryService {
     private final RealLibraryService realService;
@@ -133,5 +136,68 @@ public class LibraryServiceProxy implements LibraryService {
         }
         realService.addResource(callerUserId, resource);
         logAction(callerUserId, "ADD_RESOURCE", "Resource: " + (resource != null ? resource.getTitle() : "null"), true, System.currentTimeMillis() - start);
+    }
+
+    // ==========================================
+    // PROTOTYPE PATTERN RBAC WRAPPER
+    // ==========================================
+
+    @Override
+    public LibraryResource createBookCopy(String callerUserId, String sourceResourceId, String newCopyId, String newShelfLocation) {
+        long start = System.currentTimeMillis();
+        if (!checkStaffRole(callerUserId)) {
+            logAction(callerUserId, "PROTOTYPE_COPY_DENIED", "Source: " + sourceResourceId + " -> NewCopy: " + newCopyId, false, System.currentTimeMillis() - start);
+            throw new SecurityException("Access Denied: Only library staff can clone physical catalog copies.");
+        }
+        LibraryResource copy = realService.createBookCopy(callerUserId, sourceResourceId, newCopyId, newShelfLocation);
+        logAction(callerUserId, "PROTOTYPE_COPY_CREATED", "Source: " + sourceResourceId + " -> NewCopy: " + newCopyId, true, System.currentTimeMillis() - start);
+        return copy;
+    }
+
+    // ==========================================
+    // MEMENTO PATTERN RBAC WRAPPERS
+    // ==========================================
+
+    @Override
+    public boolean updateResourceMetadata(String callerUserId, String resourceId, String newTitle,
+                                          String newAuthor, String newShelf, String newCategory,
+                                          String newPublisher, String newEdition, int newYear) {
+        long start = System.currentTimeMillis();
+        if (!checkStaffRole(callerUserId)) {
+            logAction(callerUserId, "UPDATE_RESOURCE_DENIED", "Resource: " + resourceId, false, System.currentTimeMillis() - start);
+            return false;
+        }
+        boolean ok = realService.updateResourceMetadata(callerUserId, resourceId, newTitle, newAuthor, newShelf, newCategory, newPublisher, newEdition, newYear);
+        logAction(callerUserId, "UPDATE_RESOURCE_METADATA", "Resource: " + resourceId + " | Title: " + newTitle, ok, System.currentTimeMillis() - start);
+        return ok;
+    }
+
+    @Override
+    public boolean undoLastEdit(String callerUserId) {
+        long start = System.currentTimeMillis();
+        if (!checkStaffRole(callerUserId)) {
+            logAction(callerUserId, "UNDO_EDIT_DENIED", "Permission denied for caller " + callerUserId, false, System.currentTimeMillis() - start);
+            return false;
+        }
+        boolean ok = realService.undoLastEdit(callerUserId);
+        logAction(callerUserId, "UNDO_EDIT_EXECUTED", "Undo completed: " + ok, ok, System.currentTimeMillis() - start);
+        return ok;
+    }
+
+    @Override
+    public List<ResourceMemento> getUndoHistory(String callerUserId) {
+        if (!checkStaffRole(callerUserId)) {
+            return Collections.emptyList();
+        }
+        return realService.getUndoHistory(callerUserId);
+    }
+
+    // ==========================================
+    // STRATEGY PATTERN WRAPPER
+    // ==========================================
+
+    @Override
+    public FineCalculationResult previewFine(String userId, String resourceId, int overdueDays) {
+        return realService.previewFine(userId, resourceId, overdueDays);
     }
 }

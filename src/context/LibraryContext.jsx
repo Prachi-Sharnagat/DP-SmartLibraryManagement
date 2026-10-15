@@ -215,7 +215,8 @@ export const LibraryProvider = ({ children }) => {
   const login = async (emailOrId, password) => {
     const res = await api.login(emailOrId, password);
     if (res.ok && res.data?.data) {
-      const { token, user } = JSON.parse(res.data.data);
+      const payload = typeof res.data.data === 'string' ? JSON.parse(res.data.data) : res.data.data;
+      const { token, user } = payload;
       localStorage.setItem('token', token);
       setCurrentUser(user);
       return { success: true };

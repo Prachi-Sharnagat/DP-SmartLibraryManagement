@@ -45,13 +45,19 @@ public class LibraryApiServer {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.setExecutor(Executors.newFixedThreadPool(10));
 
-        // Register API Handlers
         server.createContext("/api/login", new LoginHandler());
         server.createContext("/api/logout", new LogoutHandler());
         server.createContext("/api/users/me", new AuthMeHandler());
         server.createContext("/api/health", new HealthHandler());
         server.createContext("/api/stats", new StatsHandler());
+        server.createContext("/api/patterns", new PatternsOverviewHandler());
         server.createContext("/api/resources", new ResourcesHandler());
+        server.createContext("/api/resources/copy", new CopyResourceHandler());
+        server.createContext("/api/resources/update", new UpdateResourceHandler());
+        server.createContext("/api/memento/undo", new MementoUndoHandler());
+        server.createContext("/api/memento/history", new MementoHistoryHandler());
+        server.createContext("/api/policies/fine-strategy", new FinePolicyHandler());
+        server.createContext("/api/policies/preview-fine", new PreviewFineHandler());
         server.createContext("/api/members", new MembersHandler());
         server.createContext("/api/members/pay-fine", new PayFineHandler());
         server.createContext("/api/circulation/issue", new IssueHandler());
@@ -130,7 +136,7 @@ public class LibraryApiServer {
                 sendCorsAndHeaders(exchange, 204, "");
                 return;
             }
-            String json = String.format("{\"status\":\"UP\",\"sqliteActive\":%b,\"patterns\":[\"Factory\",\"Chain\",\"Observer\",\"Proxy\",\"Bridge\"],\"timestamp\":%d}",
+            String json = String.format("{\"status\":\"UP\",\"sqliteActive\":%b,\"patterns\":[\"Factory Method\",\"Builder\",\"Prototype\",\"Proxy\",\"Bridge\",\"Chain of Responsibility\",\"Observer\",\"Mediator\",\"Template Method\",\"Strategy\",\"Memento\"],\"patternsCount\":11,\"timestamp\":%d}",
                     db.isSqliteActive(), System.currentTimeMillis());
             sendCorsAndHeaders(exchange, 200, JsonUtils.success("System healthy", json));
         }
@@ -217,7 +223,7 @@ public class LibraryApiServer {
             double avgLatency = auditLogs.stream().mapToLong(AuditLogEntry::getLatencyMs).average().orElse(8.5);
 
             String json = String.format(Locale.US,
-                    "{\"totalResources\":%d,\"availableResources\":%d,\"totalMembers\":%d,\"activeLoans\":%d,\"totalFines\":%.2f,\"totalAuditLogs\":%d,\"averageLatencyMs\":%.1f,\"patternsCount\":5}",
+                    "{\"totalResources\":%d,\"availableResources\":%d,\"totalMembers\":%d,\"activeLoans\":%d,\"totalFines\":%.2f,\"totalAuditLogs\":%d,\"averageLatencyMs\":%.1f,\"patternsCount\":11}",
                     totalResources, availableCount, totalMembers, activeLoansCount, totalFines, auditLogs.size(), avgLatency);
 
             sendCorsAndHeaders(exchange, 200, JsonUtils.success("Dashboard statistics", json));
@@ -261,24 +267,49 @@ public class LibraryApiServer {
                             String format = data.getOrDefault("downloadFormat", "PDF");
                             createdResource = ResourceFactory.createEBook(id, title, ebAuthor, size, format);
                             break;
-                        case "JOURNAL":
-                            String publisher = data.getOrDefault("publisher", "Academic Press");
+                        case "JOURNAL": {
+                            String jPublisher = data.getOrDefault("publisher", "Academic Press");
                             int vol = Integer.parseInt(data.getOrDefault("volume", "1"));
                             int issue = Integer.parseInt(data.getOrDefault("issue", "1"));
                             boolean peer = Boolean.parseBoolean(data.getOrDefault("isPeerReviewed", "true"));
-                            createdResource = ResourceFactory.createJournal(id, title, publisher, vol, issue, peer);
+                            createdResource = ResourceFactory.createJournal(id, title, jPublisher, vol, issue, peer);
                             break;
+                        }
                         case "BOOK":
-                        default:
+                        default: {
                             String author = data.getOrDefault("author", "Unknown Author");
                             String isbn = data.getOrDefault("isbn", "ISBN-" + UUID.randomUUID().toString().substring(0, 8));
                             String shelf = data.getOrDefault("shelfLocation", "Main Stacks");
-                            createdResource = ResourceFactory.createBook(id, title, author, isbn, shelf);
+                            String publisher = data.getOrDefault("publisher", "Standard Publishing");
+                            String edition = data.getOrDefault("edition", "1st Edition");
+                            String category = data.getOrDefault("category", "General");
+                            int year = 2024;
+                            if (data.containsKey("publicationYear")) {
+                                try { year = Integer.parseInt(data.get("publicationYear")); } catch (NumberFormatException ignored) {}
+                            }
+                            int copies = 1;
+                            if (data.containsKey("totalCopies")) {
+                                try { copies = Integer.parseInt(data.get("totalCopies")); } catch (NumberFormatException ignored) {}
+                            }
+                            createdResource = new builder.BookBuilder()
+                                    .id(id)
+                                    .title(title)
+                                    .author(author)
+                                    .isbn(isbn)
+                                    .shelfLocation(shelf)
+                                    .publisher(publisher)
+                                    .edition(edition)
+                                    .category(category)
+                                    .publicationYear(year)
+                                    .totalCopies(copies)
+                                    .availableCopies(copies)
+                                    .build();
                             break;
+                        }
                     }
 
                     libraryService.addResource(caller, createdResource);
-                    sendCorsAndHeaders(exchange, 201, JsonUtils.success("Resource created via Factory Pattern", JsonUtils.resourceToJson(createdResource)));
+                    sendCorsAndHeaders(exchange, 201, JsonUtils.success("Resource created via Builder Pattern", JsonUtils.resourceToJson(createdResource)));
                 } catch (Exception e) {
                     sendCorsAndHeaders(exchange, 400, JsonUtils.error("Failed to instantiate resource: " + e.getMessage(), "INVALID_PAYLOAD", 400));
                 }
@@ -325,10 +356,25 @@ public class LibraryApiServer {
                 String phone = data.getOrDefault("phone", "555-0199");
                 String role = data.getOrDefault("role", "MEMBER");
                 boolean active = Boolean.parseBoolean(data.getOrDefault("membershipActive", "true"));
+                String dept = data.getOrDefault("department", "General");
+                String sem = data.getOrDefault("semester", "N/A");
 
-                User u = new User(id, name, email, phone, active, 0.0, 0, role);
-                db.saveUser(u);
-                sendCorsAndHeaders(exchange, 201, JsonUtils.success("Member added successfully", JsonUtils.userToJson(u)));
+                try {
+                    User u = new builder.UserBuilder()
+                            .userId(id)
+                            .name(name)
+                            .email(email)
+                            .phone(phone)
+                            .role(role)
+                            .membershipActive(active)
+                            .department(dept)
+                            .semester(sem)
+                            .build();
+                    db.saveUser(u);
+                    sendCorsAndHeaders(exchange, 201, JsonUtils.success("Member added via Builder Pattern", JsonUtils.userToJson(u)));
+                } catch (Exception e) {
+                    sendCorsAndHeaders(exchange, 400, JsonUtils.error(e.getMessage(), "INVALID_MEMBER_DATA", 400));
+                }
             }
         }
     }
@@ -588,6 +634,206 @@ public class LibraryApiServer {
             }
             sb.append("]");
             sendCorsAndHeaders(exchange, 200, sb.toString());
+        }
+    }
+
+    // 13. Copy Resource Handler (Prototype Pattern)
+    private class CopyResourceHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 405, JsonUtils.error("Method Not Allowed", "METHOD_NOT_ALLOWED", 405));
+                return;
+            }
+            String caller = getCallerUserId(exchange);
+            if (caller == null) {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Not authenticated", "UNAUTHORIZED", 401));
+                return;
+            }
+            String body = readRequestBody(exchange);
+            Map<String, String> data = JsonUtils.parseSimpleJson(body);
+            String sourceId = data.get("sourceResourceId");
+            String newCopyId = data.get("newCopyId");
+            String newShelf = data.get("newShelfLocation");
+
+            if (sourceId == null || newCopyId == null) {
+                sendCorsAndHeaders(exchange, 400, JsonUtils.error("Missing sourceResourceId or newCopyId", "BAD_REQUEST", 400));
+                return;
+            }
+
+            try {
+                LibraryResource copy = libraryService.createBookCopy(caller, sourceId, newCopyId, newShelf);
+                sendCorsAndHeaders(exchange, 201, JsonUtils.success("Physical copy created via Prototype Pattern", JsonUtils.resourceToJson(copy)));
+            } catch (Exception e) {
+                sendCorsAndHeaders(exchange, 400, JsonUtils.error(e.getMessage(), "PROTOTYPE_COPY_FAILED", 400));
+            }
+        }
+    }
+
+    // 14. Update Resource Handler (Memento Pattern Snapshot)
+    private class UpdateResourceHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 405, JsonUtils.error("Method Not Allowed", "METHOD_NOT_ALLOWED", 405));
+                return;
+            }
+            String caller = getCallerUserId(exchange);
+            if (caller == null) {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Not authenticated", "UNAUTHORIZED", 401));
+                return;
+            }
+            String body = readRequestBody(exchange);
+            Map<String, String> data = JsonUtils.parseSimpleJson(body);
+            String resourceId = data.get("resourceId");
+            if (resourceId == null) {
+                sendCorsAndHeaders(exchange, 400, JsonUtils.error("Missing resourceId", "BAD_REQUEST", 400));
+                return;
+            }
+            String title = data.get("title");
+            String author = data.get("author");
+            String shelf = data.get("shelfLocation");
+            String category = data.get("category");
+            String publisher = data.get("publisher");
+            String edition = data.get("edition");
+            int year = 0;
+            if (data.containsKey("publicationYear")) {
+                try { year = Integer.parseInt(data.get("publicationYear")); } catch (NumberFormatException ignored) {}
+            }
+
+            boolean ok = libraryService.updateResourceMetadata(caller, resourceId, title, author, shelf, category, publisher, edition, year);
+            if (ok) {
+                LibraryResource updated = db.getResource(resourceId);
+                sendCorsAndHeaders(exchange, 200, JsonUtils.success("Resource updated. Snapshot saved to Memento history.", JsonUtils.resourceToJson(updated)));
+            } else {
+                sendCorsAndHeaders(exchange, 400, JsonUtils.error("Failed to update resource", "UPDATE_FAILED", 400));
+            }
+        }
+    }
+
+    // 15. Memento Undo Handler
+    private class MementoUndoHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 405, JsonUtils.error("Method Not Allowed", "METHOD_NOT_ALLOWED", 405));
+                return;
+            }
+            String caller = getCallerUserId(exchange);
+            if (caller == null) {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Not authenticated", "UNAUTHORIZED", 401));
+                return;
+            }
+            try {
+                boolean ok = libraryService.undoLastEdit(caller);
+                if (ok) {
+                    sendCorsAndHeaders(exchange, 200, JsonUtils.success("Compensating rollback successfully applied via Memento pattern", "true"));
+                } else {
+                    sendCorsAndHeaders(exchange, 400, JsonUtils.error("No undoable actions available in history", "NO_HISTORY", 400));
+                }
+            } catch (Exception e) {
+                sendCorsAndHeaders(exchange, 400, JsonUtils.error(e.getMessage(), "UNDO_FAILED", 400));
+            }
+        }
+    }
+
+    // 16. Memento History Handler
+    private class MementoHistoryHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            String caller = getCallerUserId(exchange);
+            if (caller == null) {
+                sendCorsAndHeaders(exchange, 401, JsonUtils.error("Not authenticated", "UNAUTHORIZED", 401));
+                return;
+            }
+            List<memento.ResourceMemento> history = libraryService.getUndoHistory(caller);
+            sendCorsAndHeaders(exchange, 200, JsonUtils.listToJson(history));
+        }
+    }
+
+    // 17. Fine Policy Handler (Strategy Pattern)
+    private class FinePolicyHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            Map<String, strategy.FineCalculationStrategy> policies = strategy.FineStrategyFactory.getAllPolicies();
+            StringBuilder sb = new StringBuilder("[");
+            int idx = 0;
+            for (Map.Entry<String, strategy.FineCalculationStrategy> entry : policies.entrySet()) {
+                strategy.FineCalculationStrategy s = entry.getValue();
+                sb.append(String.format(Locale.US,
+                        "{\"roleKey\":\"%s\",\"strategyName\":\"%s\",\"dailyRate\":%.2f,\"gracePeriodDays\":%d,\"maxFineLimit\":%.2f}",
+                        entry.getKey(), s.getStrategyName(), s.getDailyRate(), s.getGracePeriodDays(), s.getMaxFineLimit()));
+                if (idx < policies.size() - 1) sb.append(",");
+                idx++;
+            }
+            sb.append("]");
+            sendCorsAndHeaders(exchange, 200, sb.toString());
+        }
+    }
+
+    // 18. Preview Fine Handler (Strategy Pattern Sandbox)
+    private class PreviewFineHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            String body = readRequestBody(exchange);
+            Map<String, String> data = JsonUtils.parseSimpleJson(body);
+            String userId = data.getOrDefault("userId", "U101");
+            String resourceId = data.getOrDefault("resourceId", "B001");
+            int overdueDays = 5;
+            if (data.containsKey("overdueDays")) {
+                try { overdueDays = Integer.parseInt(data.get("overdueDays")); } catch (NumberFormatException ignored) {}
+            }
+            strategy.FineCalculationResult res = libraryService.previewFine(userId, resourceId, overdueDays);
+            sendCorsAndHeaders(exchange, 200, res.toJson());
+        }
+    }
+
+    // 19. Patterns Overview Handler (11 GoF Patterns Summary)
+    private class PatternsOverviewHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendCorsAndHeaders(exchange, 204, "");
+                return;
+            }
+            String patternsJson = "[" +
+                    "{\"name\":\"Factory Method\",\"category\":\"Creational\",\"description\":\"Instantiates polymorphic resources (Book, EBook, Journal) through dedicated creators.\",\"active\":true}," +
+                    "{\"name\":\"Builder\",\"category\":\"Creational\",\"description\":\"Constructs complex Book and User objects with mandatory validation and optional field configuration.\",\"active\":true}," +
+                    "{\"name\":\"Prototype\",\"category\":\"Creational\",\"description\":\"Deep-clones catalog templates and creates independent physical book copies without primary key collisions.\",\"active\":true}," +
+                    "{\"name\":\"Proxy\",\"category\":\"Structural\",\"description\":\"Intercepts library service operations to enforce RBAC, persistent audit logging, and latency profiling.\",\"active\":true}," +
+                    "{\"name\":\"Bridge\",\"category\":\"Structural\",\"description\":\"Decouples notification message abstractions from transport delivery channels (Email, SMS, In-App).\",\"active\":true}," +
+                    "{\"name\":\"Chain of Responsibility\",\"category\":\"Behavioral\",\"description\":\"Sequential 5-handler validation pipeline for loan eligibility (Membership, Fine, Limits, Availability, Reservation).\",\"active\":true}," +
+                    "{\"name\":\"Observer\",\"category\":\"Behavioral\",\"description\":\"Subscribes members to book waitlists and broadcasts real-time availability alerts upon return.\",\"active\":true}," +
+                    "{\"name\":\"Mediator\",\"category\":\"Behavioral\",\"description\":\"Coordinates library circulation across circulation, reservation, fine calculation, and notification services.\",\"active\":true}," +
+                    "{\"name\":\"Template Method\",\"category\":\"Behavioral\",\"description\":\"Enforces standardized transaction execution lifecycle with rollback safety for book checkout and check-in.\",\"active\":true}," +
+                    "{\"name\":\"Strategy\",\"category\":\"Behavioral\",\"description\":\"Dynamically calculates overdue fines based on member category policies (Standard, Student, Faculty).\",\"active\":true}," +
+                    "{\"name\":\"Memento\",\"category\":\"Behavioral\",\"description\":\"Captures pre-mutation snapshots of library records and restores previous states via safe compensating database updates.\",\"active\":true}" +
+                    "]";
+            sendCorsAndHeaders(exchange, 200, patternsJson);
         }
     }
 }

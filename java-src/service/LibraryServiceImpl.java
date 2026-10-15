@@ -1,11 +1,13 @@
 package service;
 
 import factory.LibraryResource;
+import memento.ResourceMemento;
 import model.BorrowResult;
 import model.Loan;
 import model.ReturnResult;
 import proxy.LibraryService;
 import proxy.LibraryServiceProxy;
+import strategy.FineCalculationResult;
 
 import java.util.List;
 
@@ -62,5 +64,32 @@ public class LibraryServiceImpl implements LibraryService {
     @Override
     public void addResource(String callerUserId, LibraryResource resource) {
         proxy.addResource(callerUserId, resource);
+    }
+
+    @Override
+    public LibraryResource createBookCopy(String callerUserId, String sourceResourceId, String newCopyId, String newShelfLocation) {
+        return proxy.createBookCopy(callerUserId, sourceResourceId, newCopyId, newShelfLocation);
+    }
+
+    @Override
+    public boolean updateResourceMetadata(String callerUserId, String resourceId, String newTitle,
+                                          String newAuthor, String newShelf, String newCategory,
+                                          String newPublisher, String newEdition, int newYear) {
+        return proxy.updateResourceMetadata(callerUserId, resourceId, newTitle, newAuthor, newShelf, newCategory, newPublisher, newEdition, newYear);
+    }
+
+    @Override
+    public boolean undoLastEdit(String callerUserId) {
+        return proxy.undoLastEdit(callerUserId);
+    }
+
+    @Override
+    public List<ResourceMemento> getUndoHistory(String callerUserId) {
+        return proxy.getUndoHistory(callerUserId);
+    }
+
+    @Override
+    public FineCalculationResult previewFine(String userId, String resourceId, int overdueDays) {
+        return proxy.previewFine(userId, resourceId, overdueDays);
     }
 }

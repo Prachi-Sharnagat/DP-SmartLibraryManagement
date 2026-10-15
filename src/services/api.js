@@ -97,5 +97,36 @@ export const api = {
     }),
 
   // Audit Logs (Proxy Pattern & Latency Telemetry)
-  getAuditLogs: () => request('/audit-logs')
+  getAuditLogs: () => request('/audit-logs'),
+
+  // Prototype Pattern: Clone Book Copy
+  copyResource: (sourceId, newCopyId, newShelf) =>
+    request('/resources/copy', {
+      method: 'POST',
+      body: JSON.stringify({ sourceId, newCopyId, newShelf })
+    }),
+
+  // Memento Pattern: Metadata Updates & Compensating Undo
+  updateResource: (updateData) =>
+    request('/resources/update', {
+      method: 'POST',
+      body: JSON.stringify(updateData)
+    }),
+  undoMemento: () =>
+    request('/memento/undo', {
+      method: 'POST'
+    }),
+  getMementoHistory: () => request('/memento/history'),
+
+  // Strategy Pattern: Dynamic Fine Policies & Overdue Calculation
+  getFinePolicies: () => request('/policies/fine-strategy'),
+  previewFine: (role, daysOverdue) =>
+    request('/policies/preview-fine', {
+      method: 'POST',
+      body: JSON.stringify({ role, daysOverdue: Number(daysOverdue) })
+    }),
+
+  // Patterns Architectural Registry
+  getPatterns: () => request('/patterns')
 };
+

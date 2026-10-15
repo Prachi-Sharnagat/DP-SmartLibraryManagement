@@ -158,23 +158,39 @@ public class Database {
         // Default password hash for "password123"
         String defaultHash = service.AuthService.hashPassword("password123");
 
-        // Seed Users
-        User u1 = new User("U101", "Alice Johnson", "alice@example.com", "555-0101", true, 0.0, 0, "MEMBER"); u1.setPasswordHash(defaultHash); saveUser(u1);
-        User u2 = new User("U102", "Bob Smith", "bob@example.com", "555-0102", true, 15.50, 2, "MEMBER"); u2.setPasswordHash(defaultHash); saveUser(u2);
-        User u3 = new User("U103", "Charlie Davis", "charlie@example.com", "555-0103", false, 0.0, 0, "MEMBER"); u3.setPasswordHash(defaultHash); saveUser(u3);
-        User u4 = new User("U104", "Diana Prince", "diana@example.com", "555-0104", true, 0.0, 5, "MEMBER"); u4.setPasswordHash(defaultHash); saveUser(u4);
-        User u5 = new User("U105", "Evan Wright", "evan.wright@stanford.edu", "555-0105", true, 0.0, 1, "FACULTY"); u5.setPasswordHash(defaultHash); saveUser(u5);
-        User u999 = new User("U999", "Admin Officer", "admin@library.org", "555-0999", true, 0.0, 0, "ADMIN"); u999.setPasswordHash(defaultHash); saveUser(u999);
+        // Seed Users via Builder Pattern (UserBuilder)
+        saveUser(new builder.UserBuilder().userId("U101").name("Alice Johnson").email("alice@example.com").phone("555-0101").role("MEMBER").membershipActive(true).outstandingFine(0.0).currentBorrowedCount(0).passwordHash(defaultHash).build());
+        saveUser(new builder.UserBuilder().userId("U102").name("Bob Smith").email("bob@example.com").phone("555-0102").role("MEMBER").membershipActive(true).outstandingFine(15.50).currentBorrowedCount(2).passwordHash(defaultHash).build());
+        saveUser(new builder.UserBuilder().userId("U103").name("Charlie Davis").email("charlie@example.com").phone("555-0103").role("MEMBER").membershipActive(false).outstandingFine(0.0).currentBorrowedCount(0).passwordHash(defaultHash).build());
+        saveUser(new builder.UserBuilder().userId("U104").name("Diana Prince").email("diana@example.com").phone("555-0104").role("MEMBER").membershipActive(true).outstandingFine(0.0).currentBorrowedCount(5).passwordHash(defaultHash).build());
+        saveUser(new builder.UserBuilder().userId("U105").name("Evan Wright").email("evan.wright@stanford.edu").phone("555-0105").role("FACULTY").membershipActive(true).outstandingFine(0.0).currentBorrowedCount(1).department("Computer Science").passwordHash(defaultHash).build());
+        saveUser(new builder.UserBuilder().userId("U106").name("Fiona Gallagher").email("fiona@student.edu").phone("555-0106").role("STUDENT").membershipActive(true).outstandingFine(0.0).currentBorrowedCount(1).department("Information Technology").semester("4th").passwordHash(defaultHash).build());
+        saveUser(new builder.UserBuilder().userId("U999").name("Admin Officer").email("admin@library.org").phone("555-0999").role("ADMIN").membershipActive(true).outstandingFine(0.0).currentBorrowedCount(0).passwordHash(defaultHash).build());
 
-        // Seed Resources via Factory Method
-        saveResource(factory.ResourceFactory.createBook("B001", "Design Patterns: Elements of Reusable Object-Oriented Software", "Gang of Four", "978-0201633610", "Shelf-CS-01"));
-        saveResource(factory.ResourceFactory.createBook("B002", "Clean Code: A Handbook of Agile Software Craftsmanship", "Robert C. Martin", "978-0132350884", "Shelf-CS-02"));
-        
-        LibraryResource b003 = factory.ResourceFactory.createBook("B003", "Introduction to Algorithms", "Thomas H. Cormen", "978-0262033848", "Shelf-CS-03");
-        b003.setAvailable(false); // Currently out
-        saveResource(b003);
-        
-        saveResource(factory.ResourceFactory.createBook("B004", "Artificial Intelligence: A Modern Approach", "Stuart Russell & Peter Norvig", "978-0136042594", "Shelf-AI-04"));
+        // Seed Resources via Builder Pattern (BookBuilder) & Factory Method
+        saveResource(new builder.BookBuilder()
+                .id("B001").title("Design Patterns: Elements of Reusable Object-Oriented Software")
+                .author("Gang of Four").isbn("978-0201633610").shelfLocation("Shelf-CS-01")
+                .publisher("Addison-Wesley").edition("1st Edition").category("Software Engineering")
+                .publicationYear(1994).isAvailable(true).build());
+
+        saveResource(new builder.BookBuilder()
+                .id("B002").title("Clean Code: A Handbook of Agile Software Craftsmanship")
+                .author("Robert C. Martin").isbn("978-0132350884").shelfLocation("Shelf-CS-02")
+                .publisher("Prentice Hall").edition("1st Edition").category("Software Engineering")
+                .publicationYear(2008).isAvailable(true).build());
+
+        saveResource(new builder.BookBuilder()
+                .id("B003").title("Introduction to Algorithms")
+                .author("Thomas H. Cormen").isbn("978-0262033848").shelfLocation("Shelf-CS-03")
+                .publisher("MIT Press").edition("3rd Edition").category("Algorithms")
+                .publicationYear(2009).isAvailable(false).build());
+
+        saveResource(new builder.BookBuilder()
+                .id("B004").title("Artificial Intelligence: A Modern Approach")
+                .author("Stuart Russell & Peter Norvig").isbn("978-0136042594").shelfLocation("Shelf-AI-04")
+                .publisher("Pearson").edition("4th Edition").category("Artificial Intelligence")
+                .publicationYear(2020).isAvailable(true).build());
 
         saveResource(factory.ResourceFactory.createEBook("EB001", "Effective Java (3rd Edition)", "Joshua Bloch", 14.2, "PDF"));
         saveResource(factory.ResourceFactory.createEBook("EB002", "Architecting Enterprise Systems in Java", "Martin Fowler", 8.5, "EPUB"));
@@ -355,7 +371,93 @@ public class Database {
 
     // Resource Operations
     public void saveResource(LibraryResource resource) {
+        if (resource == null) return;
         resourceMap.put(resource.getId(), resource);
+
+        if (isSqliteActive && connection != null) {
+            String sql = "INSERT OR REPLACE INTO resources (resource_id, title, type, author_publisher, isbn_format, location_url, is_available, extra_val, category, year, edition, total_copies, available_copies, borrow_days, fine_per_day, is_reference_only, description, file_size_mb, download_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, resource.getId());
+                ps.setString(2, resource.getTitle());
+                ps.setString(3, resource.getResourceType());
+
+                if (resource instanceof Book) {
+                    Book b = (Book) resource;
+                    ps.setString(4, b.getAuthor());
+                    ps.setString(5, b.getIsbn());
+                    ps.setString(6, b.getShelfLocation());
+                    ps.setInt(7, b.isAvailable() ? 1 : 0);
+                    ps.setDouble(8, 0.0);
+                    ps.setString(9, b.getCategory());
+                    ps.setInt(10, b.getPublicationYear());
+                    ps.setString(11, b.getEdition());
+                    ps.setInt(12, b.getTotalCopies());
+                    ps.setInt(13, b.getAvailableCopies());
+                    ps.setInt(14, b.getMaxBorrowDays());
+                    ps.setDouble(15, b.getLateFeePerDay());
+                    ps.setInt(16, 0);
+                    ps.setString(17, b.getPublisher());
+                    ps.setDouble(18, 0.0);
+                    ps.setString(19, "");
+                } else if (resource instanceof EBook) {
+                    EBook eb = (EBook) resource;
+                    ps.setString(4, eb.getAuthor());
+                    ps.setString(5, eb.getDownloadFormat());
+                    ps.setString(6, "Digital Repository");
+                    ps.setInt(7, eb.isAvailable() ? 1 : 0);
+                    ps.setDouble(8, eb.getFileSizeMB());
+                    ps.setString(9, "Digital");
+                    ps.setInt(10, 2024);
+                    ps.setString(11, "Digital Edition");
+                    ps.setInt(12, 999);
+                    ps.setInt(13, 999);
+                    ps.setInt(14, eb.getMaxBorrowDays());
+                    ps.setDouble(15, eb.getLateFeePerDay());
+                    ps.setInt(16, 0);
+                    ps.setString(17, "Digital Press");
+                    ps.setDouble(18, eb.getFileSizeMB());
+                    ps.setString(19, "http://library.internal/download/" + eb.getId());
+                } else if (resource instanceof Journal) {
+                    Journal j = (Journal) resource;
+                    ps.setString(4, j.getPublisher());
+                    ps.setString(5, "Vol." + j.getVolumeNumber() + " No." + j.getIssueNumber());
+                    ps.setString(6, "Periodicals Wing");
+                    ps.setInt(7, j.isAvailable() ? 1 : 0);
+                    ps.setDouble(8, 0.0);
+                    ps.setString(9, "Periodical");
+                    ps.setInt(10, 2024);
+                    ps.setString(11, "Issue " + j.getIssueNumber());
+                    ps.setInt(12, 1);
+                    ps.setInt(13, j.isAvailable() ? 1 : 0);
+                    ps.setInt(14, j.getMaxBorrowDays());
+                    ps.setDouble(15, j.getLateFeePerDay());
+                    ps.setInt(16, j.isReferenceOnly() ? 1 : 0);
+                    ps.setString(17, j.getPublisher());
+                    ps.setDouble(18, 0.0);
+                    ps.setString(19, "");
+                } else {
+                    ps.setString(4, "Unknown");
+                    ps.setString(5, "N/A");
+                    ps.setString(6, "Main Stacks");
+                    ps.setInt(7, resource.isAvailable() ? 1 : 0);
+                    ps.setDouble(8, 0.0);
+                    ps.setString(9, "General");
+                    ps.setInt(10, 2024);
+                    ps.setString(11, "Standard");
+                    ps.setInt(12, 1);
+                    ps.setInt(13, resource.isAvailable() ? 1 : 0);
+                    ps.setInt(14, resource.getMaxBorrowDays());
+                    ps.setDouble(15, resource.getLateFeePerDay());
+                    ps.setInt(16, 0);
+                    ps.setString(17, "");
+                    ps.setDouble(18, 0.0);
+                    ps.setString(19, "");
+                }
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                System.err.println("  [Database Error] saveResource error: " + e.getMessage());
+            }
+        }
     }
 
     public LibraryResource getResource(String resourceId) {
@@ -367,12 +469,41 @@ public class Database {
     }
 
     public boolean deleteResource(String resourceId) {
-        return resourceMap.remove(resourceId) != null;
+        resourceMap.remove(resourceId);
+        if (isSqliteActive && connection != null) {
+            String sql = "DELETE FROM resources WHERE resource_id = ?";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, resourceId);
+                return ps.executeUpdate() > 0;
+            } catch (SQLException e) {
+                System.err.println("  [Database Error] deleteResource error: " + e.getMessage());
+            }
+        }
+        return true;
     }
 
     // Loan Operations
     public void saveLoan(Loan loan) {
+        if (loan == null) return;
         loanMap.put(loan.getLoanId(), loan);
+
+        if (isSqliteActive && connection != null) {
+            String sql = "INSERT OR REPLACE INTO loans (loan_id, user_id, resource_id, borrow_date, due_date, return_date, fine, is_returned, issued_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, loan.getLoanId());
+                ps.setString(2, loan.getUserId());
+                ps.setString(3, loan.getResourceId());
+                ps.setString(4, loan.getBorrowDate() != null ? loan.getBorrowDate().toString() : null);
+                ps.setString(5, loan.getDueDate() != null ? loan.getDueDate().toString() : null);
+                ps.setString(6, loan.getReturnDate() != null ? loan.getReturnDate().toString() : null);
+                ps.setDouble(7, loan.getFine());
+                ps.setInt(8, loan.isReturned() ? 1 : 0);
+                ps.setString(9, "STAFF");
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                System.err.println("  [Database Error] saveLoan error: " + e.getMessage());
+            }
+        }
     }
 
     public Loan getLoan(String loanId) {

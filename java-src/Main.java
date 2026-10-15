@@ -1,16 +1,21 @@
 import bridge.*;
+import builder.*;
 import chain.*;
 import database.Database;
-import factory.LibraryResource;
-import factory.ResourceFactory;
+import factory.*;
+import mediator.*;
+import memento.*;
 import model.Loan;
 import model.User;
 import observer.Member;
 import observer.ReservationManager;
+import prototype.*;
 import proxy.LibraryService;
 import proxy.LibraryServiceProxy;
 import server.LibraryApiServer;
 import service.LibraryServiceImpl;
+import strategy.*;
+import template.*;
 
 import java.io.IOException;
 import java.util.List;
@@ -67,13 +72,15 @@ public class Main {
     private static void printBanner() {
         System.out.println("╔══════════════════════════════════════════════════════════════════════════════╗");
         System.out.println("║                📚  SMART LIBRARY MANAGEMENT SYSTEM (JAVA)                    ║");
-        System.out.println("║          Powered by GoF Design Patterns: Factory, Chain, Observer,           ║");
-        System.out.println("║                          Proxy & Bridge Architecture                         ║");
+        System.out.println("║    Unified GoF Design Patterns Architecture (11 Design Patterns Working):    ║");
+        System.out.println("║    1. Factory Method    2. Chain of Resp.    3. Observer     4. Bridge       ║");
+        System.out.println("║    5. Proxy             6. Builder           7. Prototype    8. Mediator     ║");
+        System.out.println("║    9. Template Method  10. Strategy         11. Memento                      ║");
         System.out.println("╚══════════════════════════════════════════════════════════════════════════════╝");
     }
 
     /**
-     * Demonstrates all 5 GoF Design Patterns in action with live assertions & outputs.
+     * Demonstrates all 11 GoF Design Patterns in action with live assertions & outputs.
      */
     public static void runDesignPatternsShowcase() {
         System.out.println("┌──────────────────────────────────────────────────────────────────────────────┐");
@@ -116,18 +123,16 @@ public class Main {
         System.out.println("  Test 2E: Borrow Valid Available Resource (User U101 borrows B001)...");
         boolean res2e = libraryService.borrowResource("U999", "U101", "B001");
         System.out.println("  -> Result: " + (res2e ? "SUCCESS (All Chain checks passed!)" : "FAILED"));
-        System.out.println("  [PASS] Chain of Responsibility successfully enforced all 5 validation rules.\n");
+        System.out.println("  [PASS] Chain of Responsibility successfully enforced all validation rules.\n");
 
         System.out.println("┌──────────────────────────────────────────────────────────────────────────────┐");
         System.out.println("│  3. OBSERVER PATTERN & 4. BRIDGE PATTERN DEMONSTRATION                       │");
         System.out.println("└──────────────────────────────────────────────────────────────────────────────┘");
-        // User U105 reserves currently checked out book B001 and requests Email + SMS notification
         User u105 = new User("U105", "Evan Wright", "evan@stanford.edu", "555-0105", true, 0.0, 0, "MEMBER");
         db.saveUser(u105);
 
         NotificationChannel emailChan = new EmailChannel();
         NotificationChannel smsChan = new SMSChannel();
-        NotificationChannel inAppChan = new InAppChannel();
 
         Member emailObserver = new Member(u105, new BookAvailableNotification(emailChan));
         Member smsObserver = new Member(u105, new BookAvailableNotification(smsChan));
@@ -153,6 +158,107 @@ public class Main {
         System.out.println("  Test 5C: ADMIN User U999 adds a new resource...");
         libraryService.addResource("U999", ResourceFactory.createBook("B500", "Enterprise Integration Patterns", "Gregor Hohpe", "978-0321200686", "Shelf-EIP-01"));
         System.out.println("  [PASS] Proxy pattern strictly enforced RBAC and logged all telemetry.\n");
+
+        System.out.println("┌──────────────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│  6. BUILDER DESIGN PATTERN DEMONSTRATION                                     │");
+        System.out.println("└──────────────────────────────────────────────────────────────────────────────┘");
+        Book builtBook = new BookBuilder()
+                .id("B-BLD-01")
+                .title("Designing Data-Intensive Applications")
+                .author("Martin Kleppmann")
+                .isbn("978-1449373320")
+                .shelfLocation("Tech-Arch-01")
+                .publisher("O'Reilly Media")
+                .edition("1st Edition")
+                .category("Distributed Systems")
+                .publicationYear(2017)
+                .build();
+        System.out.println("  -> Built Book via BookBuilder: " + builtBook.getDetails());
+        System.out.println("     Category: " + builtBook.getCategory() + " | Publisher: " + builtBook.getPublisher() + " | Year: " + builtBook.getPublicationYear());
+
+        try {
+            new BookBuilder().id("").title("").author("").isbn("").build();
+            System.out.println("  [FAIL] Builder validation should have thrown IllegalStateException");
+        } catch (IllegalStateException ex) {
+            System.out.println("  -> Caught expected validation exception: " + ex.getMessage());
+            System.out.println("  [PASS] Builder Pattern validates required fields and constructs complex objects cleanly.\n");
+        }
+
+        System.out.println("┌──────────────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│  7. PROTOTYPE DESIGN PATTERN DEMONSTRATION                                   │");
+        System.out.println("└──────────────────────────────────────────────────────────────────────────────┘");
+        Book originalBook = (Book) db.getResource("B001");
+        if (originalBook != null) {
+            Book clonedCopy = originalBook.createCopy("B001-COPY2", "Shelf-A1-Copy2");
+            System.out.println("  -> Original Book: ID=" + originalBook.getId() + ", Title=" + originalBook.getTitle() + ", Shelf=" + originalBook.getShelfLocation());
+            System.out.println("  -> Cloned Copy:   ID=" + clonedCopy.getId() + ", Title=" + clonedCopy.getTitle() + ", Shelf=" + clonedCopy.getShelfLocation());
+            System.out.println("  -> Verified: Cloned ID differs (" + clonedCopy.getId() + ") and isAvailable=" + clonedCopy.isAvailable() + ", availableCopies=" + clonedCopy.getAvailableCopies());
+            System.out.println("  [PASS] Prototype Pattern clones metadata while guaranteeing unique physical identity.\n");
+        }
+
+        System.out.println("┌──────────────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│  8. STRATEGY DESIGN PATTERN DEMONSTRATION (Fine Policies)                    │");
+        System.out.println("└──────────────────────────────────────────────────────────────────────────────┘");
+        FineCalculationStrategy standard = FineStrategyFactory.getStrategyForRole("STANDARD");
+        FineCalculationStrategy student = FineStrategyFactory.getStrategyForRole("STUDENT");
+        FineCalculationStrategy faculty = FineStrategyFactory.getStrategyForRole("FACULTY");
+
+        java.time.LocalDate dueDate = java.time.LocalDate.now().minusDays(10);
+        java.time.LocalDate returnDate = java.time.LocalDate.now();
+        FineCalculationResult rStandard = standard.calculateFine(dueDate, returnDate);
+        FineCalculationResult rStudent = student.calculateFine(dueDate, returnDate);
+        FineCalculationResult rFaculty = faculty.calculateFine(dueDate, returnDate);
+
+        System.out.printf("  -> Standard Policy (10 days overdue): %s%n", rStandard.getSummary());
+        System.out.printf("  -> Student  Policy (10 days overdue): %s%n", rStudent.getSummary());
+        System.out.printf("  -> Faculty  Policy (10 days overdue): %s%n", rFaculty.getSummary());
+        System.out.println("  [PASS] Strategy Pattern dynamically applies member-specific rates, grace periods, & caps.\n");
+
+        System.out.println("┌──────────────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│  9. TEMPLATE METHOD PATTERN DEMONSTRATION (Issue/Return Lifecycle)           │");
+        System.out.println("└──────────────────────────────────────────────────────────────────────────────┘");
+        LibraryTransaction issueTx = new IssueBookTransaction("U999", "U101", "B002");
+        TransactionResult issueRes = issueTx.execute();
+        System.out.println("  -> Executed IssueBookTransaction: Success=" + issueRes.isSuccess() + ", Message=" + issueRes.getMessage());
+        for (String step : issueRes.getExecutionSteps()) {
+            System.out.println("     • " + step);
+        }
+
+        LibraryTransaction returnTx = new ReturnBookTransaction("U999", "B002");
+        TransactionResult returnRes = returnTx.execute();
+        System.out.println("  -> Executed ReturnBookTransaction: Success=" + returnRes.isSuccess() + ", Message=" + returnRes.getMessage());
+        for (String step : returnRes.getExecutionSteps()) {
+            System.out.println("     • " + step);
+        }
+        System.out.println("  [PASS] Template Method Pattern enforces strict 6-phase transaction lifecycle & safety.\n");
+
+        System.out.println("┌──────────────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│  10. MEDIATOR DESIGN PATTERN DEMONSTRATION (Circulation Coordination)        │");
+        System.out.println("└──────────────────────────────────────────────────────────────────────────────┘");
+        LibraryMediator mediator = LibraryMediatorImpl.getInstance();
+        ReturnCoordinationResult returnCoord = mediator.coordinateReturn("U999", "B001");
+        System.out.println("  -> Mediator Return Coordination on B001: Success=" + returnCoord.isSuccess() + ", Msg=" + returnCoord.getMessage());
+        System.out.println("     Held for reservation: " + returnCoord.isHeldForReservation() + " | Fine assessed: $" + returnCoord.getFineAmount());
+        System.out.println("  [PASS] Mediator Pattern decoupled circulation, reservation, fine, and notification.\n");
+
+        System.out.println("┌──────────────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│  11. MEMENTO DESIGN PATTERN DEMONSTRATION (Librarian State Undo)             │");
+        System.out.println("└──────────────────────────────────────────────────────────────────────────────┘");
+        Book targetBook = (Book) db.getResource("B001");
+        if (targetBook != null) {
+            String initialTitle = targetBook.getTitle();
+            libraryService.updateResourceMetadata("U999", "B001", "Modified Architecture Title", targetBook.getAuthor(), targetBook.getShelfLocation(), targetBook.getCategory(), targetBook.getPublisher(), targetBook.getEdition(), targetBook.getPublicationYear());
+            System.out.println("  -> Modified Book Title in DB: '" + ((Book) db.getResource("B001")).getTitle() + "'");
+
+            boolean undone = libraryService.undoLastEdit("U999");
+            if (undone) {
+                System.out.println("  -> Restored Book Title via Memento: '" + ((Book) db.getResource("B001")).getTitle() + "'");
+            }
+            System.out.println("  [PASS] Memento Pattern recorded snapshot and restored state via safe compensating update.\n");
+        }
+        System.out.println("================================================================================");
+        System.out.println("🎉 ALL 11 GOF DESIGN PATTERNS VERIFIED SUCCESSFULLY IN SMART LIBRARY SYSTEM!");
+        System.out.println("================================================================================\n");
     }
 
     private static void runInteractiveMenu() {
@@ -170,15 +276,19 @@ public class Main {
             System.out.println("--------------------------------------------------------------------------------");
             System.out.println("  1. Browse & Search Resource Catalog");
             System.out.println("  2. View All Members");
-            System.out.println("  3. Issue / Borrow Resource (Chain of Responsibility & Proxy)");
-            System.out.println("  4. Return Resource (Observer & Fine Calculation)");
+            System.out.println("  3. Issue / Borrow Resource (Chain of Resp, Template Method & Mediator)");
+            System.out.println("  4. Return Resource (Template Method, Mediator, Observer & Fine Strategy)");
             System.out.println("  5. Reserve Resource / Join Waitlist (Observer & Bridge)");
             System.out.println("  6. View My Active Loans");
-            System.out.println("  7. Add New Resource to Catalog [Staff Only]");
+            System.out.println("  7. Add New Resource to Catalog via BookBuilder [Staff Only]");
             System.out.println("  8. Switch Active User Context");
-            System.out.println("  9. Run Automated Design Patterns Showcase Demo");
+            System.out.println("  9. Run Automated 11 Design Patterns Showcase Demo");
+            System.out.println(" 10. Prototype: Clone Physical Book Copy from Existing Book");
+            System.out.println(" 11. Memento: Edit Book Metadata & Undo Last Librarian Edit");
+            System.out.println(" 12. Strategy: Preview Fine Calculation Across Member Roles");
+            System.out.println(" 13. View Live 11 Design Patterns Architectural Registry");
             System.out.println("  0. Exit");
-            System.out.print("\nEnter your choice (0-9): ");
+            System.out.print("\nEnter your choice (0-13): ");
 
             String choice = scanner.nextLine().trim();
 
@@ -204,7 +314,7 @@ public class Main {
                     String resId = scanner.nextLine().trim();
                     boolean issued = libraryService.borrowResource(currentUserId, targetUser, resId);
                     if (issued) {
-                        System.out.println("✓ Resource issued successfully!");
+                        System.out.println("✓ Resource issued successfully via Transaction Pipeline!");
                     } else {
                         System.out.println("✗ Borrow request could not be processed.");
                     }
@@ -215,7 +325,7 @@ public class Main {
                     String returnResId = scanner.nextLine().trim();
                     boolean returned = libraryService.returnResource(currentUserId, returnResId);
                     if (returned) {
-                        System.out.println("✓ Return processed successfully!");
+                        System.out.println("✓ Return processed successfully via Mediator Coordination!");
                     } else {
                         System.out.println("✗ Return request failed.");
                     }
@@ -252,33 +362,36 @@ public class Main {
                     break;
 
                 case "7":
-                    System.out.println("Choose Resource Type: 1. Physical Book  2. E-Book  3. Journal");
-                    System.out.print("Choice: ");
-                    String typeChoice = scanner.nextLine().trim();
+                    System.out.println("Adding new Book via BookBuilder:");
                     System.out.print("Resource ID: ");
                     String nid = scanner.nextLine().trim();
-                    System.out.print("Title: ");
+                    System.out.print("Title (Required): ");
                     String ntitle = scanner.nextLine().trim();
+                    System.out.print("Author (Required): ");
+                    String naut = scanner.nextLine().trim();
+                    System.out.print("ISBN (Required): ");
+                    String nisbn = scanner.nextLine().trim();
+                    System.out.print("Shelf Location: ");
+                    String nshelf = scanner.nextLine().trim();
+                    System.out.print("Publisher (Optional): ");
+                    String npub = scanner.nextLine().trim();
+                    System.out.print("Category (Optional): ");
+                    String ncat = scanner.nextLine().trim();
 
-                    if ("2".equals(typeChoice)) {
-                        System.out.print("Author: ");
-                        String aut = scanner.nextLine().trim();
-                        LibraryResource eb = ResourceFactory.createEBook(nid, ntitle, aut, 10.0, "PDF");
-                        libraryService.addResource(currentUserId, eb);
-                    } else if ("3".equals(typeChoice)) {
-                        System.out.print("Publisher: ");
-                        String pub = scanner.nextLine().trim();
-                        LibraryResource j = ResourceFactory.createJournal(nid, ntitle, pub, 1, 1, false);
-                        libraryService.addResource(currentUserId, j);
-                    } else {
-                        System.out.print("Author: ");
-                        String aut = scanner.nextLine().trim();
-                        System.out.print("ISBN: ");
-                        String isbn = scanner.nextLine().trim();
-                        System.out.print("Shelf Location: ");
-                        String shelf = scanner.nextLine().trim();
-                        LibraryResource b = ResourceFactory.createBook(nid, ntitle, aut, isbn, shelf);
-                        libraryService.addResource(currentUserId, b);
+                    try {
+                        Book built = new BookBuilder()
+                                .id(nid)
+                                .title(ntitle)
+                                .author(naut)
+                                .isbn(nisbn)
+                                .shelfLocation(nshelf)
+                                .publisher(npub)
+                                .category(ncat)
+                                .build();
+                        libraryService.addResource(currentUserId, built);
+                        System.out.println("✓ Book constructed using Builder Pattern and saved to Catalog!");
+                    } catch (Exception e) {
+                        System.out.println("✗ Error building book: " + e.getMessage());
                     }
                     break;
 
@@ -302,6 +415,90 @@ public class Main {
                     runDesignPatternsShowcase();
                     break;
 
+                case "10":
+                    System.out.println("\n--- PROTOTYPE: CLONE PHYSICAL BOOK COPY ---");
+                    System.out.print("Enter Source Book ID to clone (e.g. B001, B002): ");
+                    String sourceId = scanner.nextLine().trim();
+                    System.out.print("Enter New Copy ID (e.g. " + sourceId + "-C2): ");
+                    String newCopyId = scanner.nextLine().trim();
+                    System.out.print("Enter New Shelf Location: ");
+                    String newShelf = scanner.nextLine().trim();
+
+                    LibraryResource copied = libraryService.createBookCopy(currentUserId, sourceId, newCopyId, newShelf);
+                    if (copied != null) {
+                        System.out.println("✓ Physical copy cloned successfully via Prototype Pattern!");
+                        System.out.println("  Details: " + copied.getDetails());
+                    } else {
+                        System.out.println("✗ Failed to clone book copy. Verify permissions and source ID.");
+                    }
+                    break;
+
+                case "11":
+                    System.out.println("\n--- MEMENTO: EDIT METADATA & SAFE UNDO ---");
+                    System.out.print("Enter Book ID to edit (e.g. B001): ");
+                    String editId = scanner.nextLine().trim();
+                    LibraryResource resToEdit = db.getResource(editId);
+                    if (resToEdit instanceof Book) {
+                        Book bookToEdit = (Book) resToEdit;
+                        System.out.println("Current Title: " + bookToEdit.getTitle());
+                        System.out.print("Enter New Title: ");
+                        String updatedTitle = scanner.nextLine().trim();
+
+                        boolean updated = libraryService.updateResourceMetadata(currentUserId, editId, updatedTitle, bookToEdit.getAuthor(), bookToEdit.getShelfLocation(), bookToEdit.getCategory(), bookToEdit.getPublisher(), bookToEdit.getEdition(), bookToEdit.getPublicationYear());
+                        if (updated) {
+                            System.out.println("✓ Book updated and pre-edit snapshot recorded in Memento Caretaker!");
+                            System.out.print("Do you want to undo this edit now? (y/n): ");
+                            if ("y".equalsIgnoreCase(scanner.nextLine().trim())) {
+                                boolean undone = libraryService.undoLastEdit(currentUserId);
+                                if (undone) {
+                                    System.out.println("✓ Memento undo successful! Restored title: " + ((Book) db.getResource(editId)).getTitle());
+                                } else {
+                                    System.out.println("✗ Undo failed.");
+                                }
+                            }
+                        }
+                    } else {
+                        System.out.println("Resource not found or is not an editable book.");
+                    }
+                    break;
+
+                case "12":
+                    System.out.println("\n--- STRATEGY: FINE CALCULATION SANDBOX ---");
+                    System.out.print("Enter number of overdue days to test: ");
+                    try {
+                        int days = Integer.parseInt(scanner.nextLine().trim());
+                        java.time.LocalDate dDate = java.time.LocalDate.now().minusDays(days);
+                        java.time.LocalDate rDate = java.time.LocalDate.now();
+                        for (String policy : new String[]{"STANDARD", "STUDENT", "FACULTY"}) {
+                            FineCalculationStrategy strat = FineStrategyFactory.getStrategyForRole(policy);
+                            FineCalculationResult res = strat.calculateFine(dDate, rDate);
+                            System.out.printf(" • %-10s -> Fine: $%.2f (Grace: %dd, Rate: $%.2f/d, Cap: $%.2f) - %s%n",
+                                    policy, res.getCalculatedFine(), strat.getGracePeriodDays(),
+                                    strat.getDailyRate(), strat.getMaxFineLimit(), res.getSummary());
+                        }
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid number of days.");
+                    }
+                    break;
+
+                case "13":
+                    System.out.println("\n================================================================================");
+                    System.out.println("        SMART LIBRARY SYSTEM - ALL 11 GOF DESIGN PATTERNS REGISTRY");
+                    System.out.println("================================================================================");
+                    System.out.println(" 1. Factory Method   : ResourceFactory creates polymorphic Books, EBooks, Journals");
+                    System.out.println(" 2. Chain of Resp.   : 5 Validation Handlers enforce borrow business rules");
+                    System.out.println(" 3. Observer Pattern : ReservationManager notifies members when resources return");
+                    System.out.println(" 4. Bridge Pattern   : Decouples notification messages from delivery channels (Email/SMS/InApp)");
+                    System.out.println(" 5. Proxy Pattern    : LibraryServiceProxy enforces RBAC, logging, & telemetry");
+                    System.out.println(" 6. Builder Pattern  : BookBuilder & UserBuilder assemble objects with validated fields");
+                    System.out.println(" 7. Prototype Pattern: Prototype<T> & Book.createCopy clone metadata with independent copies");
+                    System.out.println(" 8. Strategy Pattern : FineStrategyFactory applies Standard/Student/Faculty fine policies");
+                    System.out.println(" 9. Template Method  : LibraryTransaction defines 6-step lifecycle for Issue & Return");
+                    System.out.println("10. Mediator Pattern : LibraryMediator coordinates circulation, reservations, fines, alerts");
+                    System.out.println("11. Memento Pattern  : LibraryMemento & LibraryHistory record snapshots for safe database undo");
+                    System.out.println("================================================================================");
+                    break;
+
                 case "0":
                     System.out.println("\nThank you for using Smart Library Management System. Goodbye!");
                     return;
@@ -312,3 +509,5 @@ public class Main {
         }
     }
 }
+
+

@@ -11,7 +11,7 @@
     "java:cli": "java -cp \"bin;lib/*\" Main",
     "java:server": "java -cp \"bin;lib/*\" Main --server",
     "java:test": "java -cp \"bin;lib/*\" test.PatternTestSuite",
-    "java:build": "javac -d bin -cp \"lib/*\" (Get-ChildItem -Recurse -Filter *.java java-src | ForEach-Object { $_.FullName })"
+    "java:build": "cmd /c \"dir /s /b java-src\\*.java > sources.txt && javac -d bin -cp lib/* @sources.txt && del sources.txt\""
   },
   "dependencies": {
     "lucide-react": "^0.475.0",
