@@ -50,7 +50,8 @@ export const Catalog = ({ onSelectResource, onOpenAddResource, onNavigateToIssue
         setCloneModalItem(null);
         if (refreshData) refreshData();
       } else {
-        showToast(res.data?.message || 'Failed to clone copy', 'error');
+        const errMsg = res.data?.error || res.data?.message || 'Failed to clone copy';
+        showToast(errMsg, 'error');
       }
     } catch (err) {
       showToast('Error cloning book copy: ' + err.message, 'error');
@@ -79,6 +80,7 @@ export const Catalog = ({ onSelectResource, onOpenAddResource, onNavigateToIssue
     try {
       const res = await api.updateResource({
         id: editModalItem.id,
+        resourceId: editModalItem.id,
         title: editTitle.trim(),
         author: editAuthor.trim(),
         shelfLocation: editShelf.trim(),
@@ -93,7 +95,8 @@ export const Catalog = ({ onSelectResource, onOpenAddResource, onNavigateToIssue
         setCanUndo(true);
         if (refreshData) refreshData();
       } else {
-        showToast(res.data?.message || 'Failed to update metadata', 'error');
+        const errMsg = res.data?.error || res.data?.message || 'Failed to update metadata';
+        showToast(errMsg, 'error');
       }
     } catch (err) {
       showToast('Error updating metadata: ' + err.message, 'error');
@@ -110,7 +113,8 @@ export const Catalog = ({ onSelectResource, onOpenAddResource, onNavigateToIssue
         showToast(`✓ Memento Undo: ${res.data.message}`, 'success');
         if (refreshData) refreshData();
       } else {
-        showToast(res.data?.message || 'No recent edits to undo', 'info');
+        const errMsg = res.data?.error || res.data?.message || 'No recent edits to undo';
+        showToast(errMsg, 'info');
       }
     } catch (err) {
       showToast('Undo failed: ' + err.message, 'error');

@@ -657,8 +657,14 @@ public class LibraryApiServer {
             String body = readRequestBody(exchange);
             Map<String, String> data = JsonUtils.parseSimpleJson(body);
             String sourceId = data.get("sourceResourceId");
+            if (sourceId == null || sourceId.trim().isEmpty()) {
+                sourceId = data.get("sourceId");
+            }
             String newCopyId = data.get("newCopyId");
             String newShelf = data.get("newShelfLocation");
+            if (newShelf == null || newShelf.trim().isEmpty()) {
+                newShelf = data.get("newShelf");
+            }
 
             if (sourceId == null || newCopyId == null) {
                 sendCorsAndHeaders(exchange, 400, JsonUtils.error("Missing sourceResourceId or newCopyId", "BAD_REQUEST", 400));
@@ -694,6 +700,9 @@ public class LibraryApiServer {
             String body = readRequestBody(exchange);
             Map<String, String> data = JsonUtils.parseSimpleJson(body);
             String resourceId = data.get("resourceId");
+            if (resourceId == null || resourceId.trim().isEmpty()) {
+                resourceId = data.get("id");
+            }
             if (resourceId == null) {
                 sendCorsAndHeaders(exchange, 400, JsonUtils.error("Missing resourceId", "BAD_REQUEST", 400));
                 return;
@@ -806,8 +815,19 @@ public class LibraryApiServer {
             int overdueDays = 5;
             if (data.containsKey("overdueDays")) {
                 try { overdueDays = Integer.parseInt(data.get("overdueDays")); } catch (NumberFormatException ignored) {}
+            } else if (data.containsKey("daysOverdue")) {
+                try { overdueDays = Integer.parseInt(data.get("daysOverdue")); } catch (NumberFormatException ignored) {}
             }
-            strategy.FineCalculationResult res = libraryService.previewFine(userId, resourceId, overdueDays);
+            String role = data.get("role");
+            strategy.FineCalculationResult res;
+            if (role != null && !role.trim().isEmpty()) {
+                strategy.FineCalculationStrategy strat = strategy.FineStrategyFactory.getStrategyForRole(role);
+                java.time.LocalDate dueDate = java.time.LocalDate.now().minusDays(Math.max(0, overdueDays));
+                java.time.LocalDate returnDate = java.time.LocalDate.now();
+                res = strat.calculateFine(dueDate, returnDate);
+            } else {
+                res = libraryService.previewFine(userId, resourceId, overdueDays);
+            }
             sendCorsAndHeaders(exchange, 200, res.toJson());
         }
     }

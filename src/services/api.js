@@ -103,14 +103,23 @@ export const api = {
   copyResource: (sourceId, newCopyId, newShelf) =>
     request('/resources/copy', {
       method: 'POST',
-      body: JSON.stringify({ sourceId, newCopyId, newShelf })
+      body: JSON.stringify({
+        sourceId,
+        sourceResourceId: sourceId,
+        newCopyId,
+        newShelf,
+        newShelfLocation: newShelf
+      })
     }),
 
   // Memento Pattern: Metadata Updates & Compensating Undo
   updateResource: (updateData) =>
     request('/resources/update', {
       method: 'POST',
-      body: JSON.stringify(updateData)
+      body: JSON.stringify({
+        ...updateData,
+        resourceId: updateData.resourceId || updateData.id
+      })
     }),
   undoMemento: () =>
     request('/memento/undo', {
@@ -123,7 +132,11 @@ export const api = {
   previewFine: (role, daysOverdue) =>
     request('/policies/preview-fine', {
       method: 'POST',
-      body: JSON.stringify({ role, daysOverdue: Number(daysOverdue) })
+      body: JSON.stringify({
+        role,
+        daysOverdue: Number(daysOverdue),
+        overdueDays: Number(daysOverdue)
+      })
     }),
 
   // Patterns Architectural Registry

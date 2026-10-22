@@ -112,14 +112,20 @@ export const LibraryProvider = ({ children }) => {
               author: r.author || r.publisher || 'Unknown',
               type: r.type || 'BOOK',
               status: r.isAvailable ? 'AVAILABLE' : 'ISSUED',
+              isAvailable: !!r.isAvailable,
               isbn: r.isbn || 'N/A',
               location: r.shelfLocation || 'Main Library',
+              shelfLocation: r.shelfLocation || 'Main Library',
+              category: r.category || 'General',
+              publisher: r.publisher || '',
+              edition: r.edition || '1st Edition',
+              publicationYear: r.publicationYear || 2024,
               borrowDays: r.maxBorrowDays || 14,
               finePerDay: r.lateFeePerDay || 1.5,
               isReferenceOnly: !!r.isReferenceOnly,
               fileSizeMB: r.fileSizeMB,
-              availableCopies: r.isAvailable ? 1 : 0,
-              totalCopies: 1
+              availableCopies: r.availableCopies !== undefined ? r.availableCopies : (r.isAvailable ? 1 : 0),
+              totalCopies: r.totalCopies !== undefined ? r.totalCopies : 1
             }));
             return [...serverMapped, ...extraLocal];
           });
@@ -742,7 +748,8 @@ export const LibraryProvider = ({ children }) => {
         isBackendOnline,
         backendPort,
         isSyncing,
-        syncWithBackend
+        syncWithBackend,
+        refreshData: syncWithBackend
       }}
     >
       {children}
